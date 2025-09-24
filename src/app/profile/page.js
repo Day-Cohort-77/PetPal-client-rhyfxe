@@ -23,7 +23,7 @@ export default function Profile() {
       zipCode: ''
     },
     phone: '',
-    preferredContactMethod: 'Email'
+    preferredContactMethod: ''
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -32,6 +32,8 @@ export default function Profile() {
   // Load user data when component mounts
   useEffect(() => {
     if (user) {
+      console.log('Loading user data into form:', user);
+      console.log('User preferredContactMethod:', user.preferredContactMethod);
       setFormData({
         email: user.email || '',
         firstName: user.firstName || '',
@@ -43,7 +45,7 @@ export default function Profile() {
           zipCode: user.address?.zipCode || ''
         },
         phone: user.phone || '',
-        preferredContactMethod: user.preferredContactMethod || 'Email'
+        preferredContactMethod: user.preferredContactMethod || ''
       });
     } else {
       // Redirect to login if not authenticated
@@ -92,8 +94,27 @@ export default function Profile() {
       const updatedUser = await updateUserProfile(profileData);
       console.log('Profile updated successfully:', updatedUser);
 
-      // Refresh user data in context
-      await updateUser();
+      // Refresh user data in context and update form immediately
+      const refreshedUser = await updateUser();
+      console.log('Refreshed user data:', refreshedUser);
+
+      // Update the form state with the refreshed data
+      if (refreshedUser) {
+        setFormData({
+          email: refreshedUser.email || '',
+          firstName: refreshedUser.firstName || '',
+          lastName: refreshedUser.lastName || '',
+          address: {
+            street: refreshedUser.address?.street || '',
+            city: refreshedUser.address?.city || '',
+            state: refreshedUser.address?.state || '',
+            zipCode: refreshedUser.address?.zipCode || ''
+          },
+          phone: refreshedUser.phone || '',
+          preferredContactMethod: refreshedUser.preferredContactMethod || ''
+        });
+        console.log('Updated form data with preferredContactMethod:', refreshedUser.preferredContactMethod);
+      }
 
       setSuccess('Profile updated successfully!');
     } catch (err) {
@@ -186,8 +207,10 @@ export default function Profile() {
                     Preferred Contact Method
                   </Text>
                   <Select.Root
+                    key={`select-${formData.preferredContactMethod}`}
                     value={formData.preferredContactMethod}
                     onValueChange={(value) => {
+                      console.log('Select value changed to:', value);
                       setFormData(prev => ({
                         ...prev,
                         preferredContactMethod: value

@@ -7,7 +7,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import Link from 'next/link';
 import Navbar from '../../../components/Navbar';
 import FeatureErrorBoundary from '../../../components/FeatureErrorBoundary';
-import { Container, Heading, Text, Flex, Card, TextField, Button, Box, Grid } from '@radix-ui/themes';
+import { Container, Heading, Text, Flex, Card, TextField, Button, Box, Grid, Select } from '@radix-ui/themes';
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -16,8 +16,14 @@ export default function Register() {
     confirmPassword: '',
     firstName: '',
     lastName: '',
-    address: '',
-    phone: ''
+    address: {
+      street: '',
+      city: '',
+      state: '',
+      zipCode: ''
+    },
+    phone: '',
+    preferredContactMethod: ''
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -26,10 +32,23 @@ export default function Register() {
 
   const handleChange = (e) => {
     const { id, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [id]: value
-    }));
+
+    // Handle address fields separately
+    if (id.startsWith('address.')) {
+      const addressField = id.split('.')[1];
+      setFormData(prev => ({
+        ...prev,
+        address: {
+          ...prev.address,
+          [addressField]: value
+        }
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [id]: value
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -39,6 +58,12 @@ export default function Register() {
     // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
+      return;
+    }
+
+    // Validate preferred contact method is selected
+    if (!formData.preferredContactMethod) {
+      setError('Please select a preferred contact method');
       return;
     }
 
@@ -131,16 +156,86 @@ export default function Register() {
                 </Box>
 
                 <Box>
-                  <Text as="label" size="2" mb="1" htmlFor="address">
-                    Address
+                  <Text as="label" size="2" mb="1" htmlFor="preferredContactMethod">
+                    Preferred Contact Method
                   </Text>
-                  <TextField.Root
-                    id="address"
-                    value={formData.address}
-                    onChange={handleChange}
-                    placeholder="Enter your address"
+                  <Select.Root
+                    value={formData.preferredContactMethod}
+                    onValueChange={(value) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        preferredContactMethod: value
+                      }));
+                    }}
                     required
-                  />
+                  >
+                    <Select.Trigger placeholder="Select preferred contact method *" />
+                    <Select.Content>
+                      <Select.Item value="Email">Email</Select.Item>
+                      <Select.Item value="Phone">Phone</Select.Item>
+                      <Select.Item value="SMS">SMS</Select.Item>
+                    </Select.Content>
+                  </Select.Root>
+                </Box>
+
+                {/* Address Section */}
+                <Box>
+                  <Text size="3" weight="bold" mb="3">Address</Text>
+                  <Flex direction="column" gap="3">
+                    <Box>
+                      <Text as="label" size="2" mb="1" htmlFor="address.street">
+                        Street Address
+                      </Text>
+                      <TextField.Root
+                        id="address.street"
+                        value={formData.address.street}
+                        onChange={handleChange}
+                        placeholder="Enter your street address"
+                        required
+                      />
+                    </Box>
+
+                    <Grid columns="2" gap="3">
+                      <Box>
+                        <Text as="label" size="2" mb="1" htmlFor="address.city">
+                          City
+                        </Text>
+                        <TextField.Root
+                          id="address.city"
+                          value={formData.address.city}
+                          onChange={handleChange}
+                          placeholder="Enter your city"
+                          required
+                        />
+                      </Box>
+
+                      <Box>
+                        <Text as="label" size="2" mb="1" htmlFor="address.state">
+                          State
+                        </Text>
+                        <TextField.Root
+                          id="address.state"
+                          value={formData.address.state}
+                          onChange={handleChange}
+                          placeholder="Enter your state"
+                          required
+                        />
+                      </Box>
+                    </Grid>
+
+                    <Box style={{ maxWidth: '200px' }}>
+                      <Text as="label" size="2" mb="1" htmlFor="address.zipCode">
+                        ZIP Code
+                      </Text>
+                      <TextField.Root
+                        id="address.zipCode"
+                        value={formData.address.zipCode}
+                        onChange={handleChange}
+                        placeholder="Enter your ZIP code"
+                        required
+                      />
+                    </Box>
+                  </Flex>
                 </Box>
 
                 <Grid columns="2" gap="4">

@@ -3,19 +3,27 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
+import { updateUserProfile } from '../../services/authService';
 import Navbar from '../../components/Navbar';
+import ProtectedRoute from '../../components/ProtectedRoute';
 import FeatureErrorBoundary from '../../components/FeatureErrorBoundary';
-import { Container, Heading, Text, Flex, Card, TextField, Button, Box, Grid } from '@radix-ui/themes';
+import { Container, Heading, Text, Flex, Card, TextField, Button, Box, Grid, Select } from '@radix-ui/themes';
 
 export default function Profile() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const router = useRouter();
   const [formData, setFormData] = useState({
     email: '',
     firstName: '',
     lastName: '',
-    address: '',
-    phone: ''
+    address: {
+      street: '',
+      city: '',
+      state: '',
+      zipCode: ''
+    },
+    phone: '',
+    preferredContactMethod: ''
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -24,12 +32,20 @@ export default function Profile() {
   // Load user data when component mounts
   useEffect(() => {
     if (user) {
+      console.log('Loading user data into form:', user);
+      console.log('User preferredContactMethod:', user.preferredContactMethod);
       setFormData({
         email: user.email || '',
         firstName: user.firstName || '',
         lastName: user.lastName || '',
-        address: user.address || '',
-        phone: user.phone || ''
+        address: {
+          street: user.address?.street || '',
+          city: user.address?.city || '',
+          state: user.address?.state || '',
+          zipCode: user.address?.zipCode || ''
+        },
+        phone: user.phone || '',
+        preferredContactMethod: user.preferredContactMethod || ''
       });
     } else {
       // Redirect to login if not authenticated
@@ -39,10 +55,23 @@ export default function Profile() {
 
   const handleChange = (e) => {
     const { id, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [id]: value
-    }));
+
+    // Handle address fields separately
+    if (id.startsWith('address.')) {
+      const addressField = id.split('.')[1];
+      setFormData(prev => ({
+        ...prev,
+        address: {
+          ...prev.address,
+          [addressField]: value
+        }
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [id]: value
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -52,15 +81,45 @@ export default function Profile() {
     setIsLoading(true);
 
     try {
-      // Call API to update user profile
-      // This would typically be a service call like updateUserProfile(formData)
-      // For now, we'll just simulate a successful update
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Prepare the data to send to the API (excluding email as it's not updatable)
+      const profileData = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        address: formData.address,
+        phone: formData.phone,
+        preferredContactMethod: formData.preferredContactMethod
+      };
 
-      setSuccess('Profile updated successfully');
+      // Call API to update user profile
+      const updatedUser = await updateUserProfile(profileData);
+      console.log('Profile updated successfully:', updatedUser);
+
+      // Refresh user data in context and update form immediately
+      const refreshedUser = await updateUser();
+      console.log('Refreshed user data:', refreshedUser);
+
+      // Update the form state with the refreshed data
+      if (refreshedUser) {
+        setFormData({
+          email: refreshedUser.email || '',
+          firstName: refreshedUser.firstName || '',
+          lastName: refreshedUser.lastName || '',
+          address: {
+            street: refreshedUser.address?.street || '',
+            city: refreshedUser.address?.city || '',
+            state: refreshedUser.address?.state || '',
+            zipCode: refreshedUser.address?.zipCode || ''
+          },
+          phone: refreshedUser.phone || '',
+          preferredContactMethod: refreshedUser.preferredContactMethod || ''
+        });
+        console.log('Updated form data with preferredContactMethod:', refreshedUser.preferredContactMethod);
+      }
+
+      setSuccess('Profile updated successfully!');
     } catch (err) {
       console.error('Profile update error:', err);
-      setError('Failed to update profile. Please try again.');
+      setError(err.message || 'Failed to update profile. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -124,9 +183,8 @@ export default function Profile() {
                     id="email"
                     type="email"
                     value={formData.email}
-                    onChange={handleChange}
-                    placeholder="Enter your email"
-                    required
+                    placeholder="Email cannot be changed"
+                    disabled
                   />
                 </Box>
 
@@ -145,16 +203,87 @@ export default function Profile() {
                 </Box>
 
                 <Box>
-                  <Text as="label" size="2" mb="1" htmlFor="address">
-                    Address
+                  <Text as="label" size="2" mb="1" htmlFor="preferredContactMethod">
+                    Preferred Contact Method
                   </Text>
-                  <TextField.Root
-                    id="address"
-                    value={formData.address}
-                    onChange={handleChange}
-                    placeholder="Enter your address"
-                    required
-                  />
+                  <Select.Root
+                    key={`select-${formData.preferredContactMethod}`}
+                    value={formData.preferredContactMethod}
+                    onValueChange={(value) => {
+                      console.log('Select value changed to:', value);
+                      setFormData(prev => ({
+                        ...prev,
+                        preferredContactMethod: value
+                      }));
+                    }}
+                  >
+                    <Select.Trigger placeholder="Select contact method" />
+                    <Select.Content>
+                      <Select.Item value="Email">Email</Select.Item>
+                      <Select.Item value="Phone">Phone</Select.Item>
+                      <Select.Item value="SMS">SMS</Select.Item>
+                    </Select.Content>
+                  </Select.Root>
+                </Box>
+
+                {/* Address Section */}
+                <Box>
+                  <Text size="3" weight="bold" mb="3">Address</Text>
+                  <Flex direction="column" gap="3">
+                    <Box>
+                      <Text as="label" size="2" mb="1" htmlFor="address.street">
+                        Street Address
+                      </Text>
+                      <TextField.Root
+                        id="address.street"
+                        value={formData.address.street}
+                        onChange={handleChange}
+                        placeholder="Enter your street address"
+                        required
+                      />
+                    </Box>
+
+                    <Grid columns="2" gap="3">
+                      <Box>
+                        <Text as="label" size="2" mb="1" htmlFor="address.city">
+                          City
+                        </Text>
+                        <TextField.Root
+                          id="address.city"
+                          value={formData.address.city}
+                          onChange={handleChange}
+                          placeholder="Enter your city"
+                          required
+                        />
+                      </Box>
+
+                      <Box>
+                        <Text as="label" size="2" mb="1" htmlFor="address.state">
+                          State
+                        </Text>
+                        <TextField.Root
+                          id="address.state"
+                          value={formData.address.state}
+                          onChange={handleChange}
+                          placeholder="Enter your state"
+                          required
+                        />
+                      </Box>
+                    </Grid>
+
+                    <Box style={{ maxWidth: '200px' }}>
+                      <Text as="label" size="2" mb="1" htmlFor="address.zipCode">
+                        ZIP Code
+                      </Text>
+                      <TextField.Root
+                        id="address.zipCode"
+                        value={formData.address.zipCode}
+                        onChange={handleChange}
+                        placeholder="Enter your ZIP code"
+                        required
+                      />
+                    </Box>
+                  </Flex>
                 </Box>
 
                 <Flex gap="3" mt="4">
@@ -175,7 +304,9 @@ export default function Profile() {
 
   return (
     <FeatureErrorBoundary featureName="Profile">
-      {profileContent}
+      <ProtectedRoute>
+        {profileContent}
+      </ProtectedRoute>
     </FeatureErrorBoundary>
   );
 }

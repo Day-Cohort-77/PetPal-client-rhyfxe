@@ -48,6 +48,21 @@ export const AuthProvider = ({ children }) => {
     // The cookie will be removed by the server
   };
 
+  // Update user function (for profile updates)
+  const updateUser = async () => {
+    try {
+      const userData = await getCurrentUser();
+      if (userData && "id" in userData) {
+        setUser(userData);
+        return userData;
+      }
+      return null;
+    } catch (err) {
+      console.error('Error updating user:', err);
+      throw err;
+    }
+  };
+
   // Check if the user has a specific role
   const hasRole = (role) => {
     if (!user || !user.roles) return false;
@@ -67,6 +82,7 @@ export const AuthProvider = ({ children }) => {
     error,
     login,
     logout,
+    updateUser,
     hasRole,
     isAdmin,
     isVeterinarian,

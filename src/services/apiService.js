@@ -110,9 +110,11 @@ export const del = async (endpoint, options = {}) => {
 };
 
 // Export a default object with all methods
-export default {
+const apiService = {
   get,
   post,
   put,
   delete: del,
 };
+
+export default apiService;

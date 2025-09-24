@@ -23,10 +23,15 @@ export const AuthProvider = ({ children }) => {
         // If we got user data, set the user
         if (userData && "id" in userData) {
           setUser(userData);
+        } else {
+          // If no valid user data, ensure user is null
+          setUser(null);
         }
       } catch (err) {
         console.error('Error loading user:', err);
         setError(err.message);
+        // Ensure user is null on error
+        setUser(null);
       } finally {
         setLoading(false);
       }
@@ -42,10 +47,20 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Logout function
-  const logout = () => {
-    console.log('Logging out user');
-    setUser(null);
-    // The cookie will be removed by the server
+  const logout = async () => {
+    try {
+      console.log('Logging out user');
+      // Call the API logout endpoint to clear server-side session/cookie
+      const { logout: apiLogout } = await import('../services/authService');
+      await apiLogout();
+    } catch (err) {
+      console.error('Error during API logout:', err);
+      // Continue with local logout even if API call fails
+    } finally {
+      // Always clear local user state regardless of API call success
+      setUser(null);
+      setError(null);
+    }
   };
 
   // Update user function (for profile updates)
@@ -55,11 +70,38 @@ export const AuthProvider = ({ children }) => {
       if (userData && "id" in userData) {
         setUser(userData);
         return userData;
+      } else {
+        // If no valid user data, clear the user
+        setUser(null);
+        return null;
       }
-      return null;
     } catch (err) {
       console.error('Error updating user:', err);
+      // Clear user on error
+      setUser(null);
       throw err;
+    }
+  };
+
+  // Force refresh auth state (useful for checking if session is still valid)
+  const refreshAuth = async () => {
+    setLoading(true);
+    try {
+      const userData = await getCurrentUser();
+      if (userData && "id" in userData) {
+        setUser(userData);
+        return userData;
+      } else {
+        setUser(null);
+        return null;
+      }
+    } catch (err) {
+      console.error('Error refreshing auth:', err);
+      setUser(null);
+      setError(err.message);
+      return null;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -83,6 +125,7 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     updateUser,
+    refreshAuth,
     hasRole,
     isAdmin,
     isVeterinarian,

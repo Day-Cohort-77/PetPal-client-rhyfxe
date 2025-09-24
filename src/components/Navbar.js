@@ -2,20 +2,23 @@
 
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { logout } from '../services/authService';
 import Link from 'next/link';
 import { Flex, Button, Box, Text, Avatar, DropdownMenu } from '@radix-ui/themes';
 
 const Navbar = () => {
-  const { user, isAdmin, isVeterinarian } = useAuth();
+  const { user, isAdmin, isVeterinarian, logout: contextLogout } = useAuth();
   const router = useRouter();
 
   const handleLogout = async () => {
     try {
-      await logout();
+      // Use the context logout function which handles both API call and local state
+      await contextLogout();
+      // Redirect to login
       router.push('/auth/login');
     } catch (error) {
       console.error('Error logging out:', error);
+      // Redirect anyway to ensure user gets to login screen
+      router.push('/auth/login');
     }
   };
 

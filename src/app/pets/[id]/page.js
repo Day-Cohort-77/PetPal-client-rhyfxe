@@ -10,6 +10,8 @@ import FeatureErrorBoundary from '../../../components/FeatureErrorBoundary';
 import ProtectedRoute from '../../../components/ProtectedRoute';
 import { Container, Grid, Badge, Heading, Text, Flex, Card, Button, Box, Tabs, Avatar, Dialog, IconButton } from '@radix-ui/themes';
 import { FiEdit2, FiTrash2, FiCalendar } from 'react-icons/fi';
+const Behavior = dynamic(() => import('./behavior/page'), { ssr: false });
+import dynamic from 'next/dynamic';
 
 export default function PetDetails() {
   const { user } = useAuth();
@@ -145,15 +147,16 @@ export default function PetDetails() {
               </Flex>
             </Card>
 
-            <Tabs.Root defaultValue="details">
+            <Tabs.Root defaultValue="details" size="1">
               <Tabs.List>
                 <Tabs.Trigger value="details">Details</Tabs.Trigger>
-                <Tabs.Trigger value="appointments">Appointments</Tabs.Trigger>
-                <Tabs.Trigger value="health">Health Records</Tabs.Trigger>
-                <Tabs.Trigger value="vaccinations">Vaccinations</Tabs.Trigger>
-                <Tabs.Trigger value="medications">Medications</Tabs.Trigger>
-                <Tabs.Trigger value="weight">Weight History</Tabs.Trigger>
-                <Tabs.Trigger value="feeding">Feeding Schedule</Tabs.Trigger>
+                <Tabs.Trigger value="appointments">Appts.</Tabs.Trigger>
+                <Tabs.Trigger value="health">Health</Tabs.Trigger>
+                <Tabs.Trigger value="vaccinations">Vaccines</Tabs.Trigger>
+                <Tabs.Trigger value="medications">Meds</Tabs.Trigger>
+                <Tabs.Trigger value="weight">Weight</Tabs.Trigger>
+                <Tabs.Trigger value="feeding">Feeding</Tabs.Trigger>
+                <Tabs.Trigger value="behavior">Training</Tabs.Trigger>
               </Tabs.List>
 
               <Box pt="4">
@@ -318,6 +321,10 @@ export default function PetDetails() {
                       <Text>No feeding schedule found. Create a feeding schedule to get started.</Text>
                     </Flex>
                   </Card>
+                </Tabs.Content>
+
+                <Tabs.Content value="behavior">
+                  <Behavior />
                 </Tabs.Content>
               </Box>
             </Tabs.Root>

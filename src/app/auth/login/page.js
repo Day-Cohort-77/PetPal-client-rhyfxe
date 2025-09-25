@@ -24,11 +24,21 @@ export default function Login() {
 
     try {
       const userData = await login({ email, password });
-      authLogin(userData);
-      router.push('/');
+
+      // Only proceed if we got valid user data
+      if (userData && userData.id) {
+        authLogin(userData);
+        router.push('/');
+      } else {
+        // No valid user data - treat as failed login
+        setError('Email or password was incorrect. Please try again.');
+        return;
+      }
     } catch (err) {
       console.error('Login error:', err);
-      setError('Invalid email or password. Please try again.');
+      // Show error and stay on login page
+      setError('Email or password was incorrect. Please try again.');
+      return;
     } finally {
       setIsLoading(false);
     }
@@ -86,7 +96,7 @@ export default function Login() {
 
             <Flex justify="between" mt="4">
               <Text size="2">
-                Don't have an account?{' '}
+                Don&apos;t have an account?{' '}
                 <Link href="/auth/register" style={{ color: 'var(--accent-9)' }}>
                   Register
                 </Link>

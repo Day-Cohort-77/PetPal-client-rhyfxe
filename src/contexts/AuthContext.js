@@ -43,7 +43,21 @@ export const AuthProvider = ({ children }) => {
   // Login function
   const login = async (userData) => {
     console.log('Logging in user:', userData);
-    setUser(userData);
+
+    // Validate user data before setting
+    if (userData && userData.id) {
+      setUser(userData);
+      setError(null);
+    } else if (userData === null) {
+      // Explicit null means clear user (for logout/error cases)
+      setUser(null);
+      setError(null);
+    } else {
+      // Invalid user data
+      console.error('Invalid user data provided to login:', userData);
+      setUser(null);
+      setError('Invalid user data received');
+    }
   };
 
   // Logout function

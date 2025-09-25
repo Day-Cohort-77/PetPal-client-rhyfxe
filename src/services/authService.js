@@ -99,12 +99,12 @@ class AuthService {
   }
 
   // User logout
-  logout() {
+  async logout() {
     console.log('[AuthService] Logging out user');
     
     // Try to call logout API endpoint
     try {
-      apiService.post('/auth/logout');
+      await apiService.post('/auth/logout');
     } catch (error) {
       console.log('[AuthService] Logout API call failed, continuing with local cleanup');
     }

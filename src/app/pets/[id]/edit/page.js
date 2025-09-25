@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { getPetById, updatePet } from '../../../../services/petService';
+import { uploadPetImage } from '../../../../services/fileUploadService';
 import Navbar from '../../../../components/Navbar';
 import ProtectedRoute from '../../../../components/ProtectedRoute';
 import FeatureErrorBoundary from '../../../../components/FeatureErrorBoundary';
@@ -109,7 +110,7 @@ export default function EditPet() {
     setIsSaving(true);
 
     try {
-      // Create FormData for file upload
+      // Create FormData for pet data
       const petData = { ...formData };
 
       // Convert birthDate to ISO format if needed
@@ -117,6 +118,19 @@ export default function EditPet() {
         const date = new Date(petData.birthDate);
         if (!isNaN(date.getTime())) {
           petData.birthDate = date.toISOString();
+        }
+      }
+
+      // Upload image first if a new one was selected
+      if (imageFile) {
+        try {
+          const uploadResult = await uploadPetImage(imageFile);
+          petData.imageUrl = uploadResult.imageUrl;
+        } catch (uploadError) {
+          console.error('Error uploading image:', uploadError);
+          setError('Failed to upload pet image. Please try again.');
+          setIsSaving(false);
+          return;
         }
       }
 

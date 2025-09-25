@@ -1,9 +1,10 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import authService, { getCurrentUser } from '../services/authService';
+import { createContext, useState, useEffect, useContext } from 'react';
+import { getCurrentUser } from '../services/authService';
 
-const AuthContext = createContext(null);
+// Create the context
+const AuthContext = createContext();
 
 // Create a provider component
 export const AuthProvider = ({ children }) => {
@@ -15,15 +16,24 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        // Try to get the current user directly from the API
-        // The API will use the HttpOnly cookie automatically
-        const userData = await getCurrentUser();
-
-        // If we got user data, set the user
-        if (userData && "id" in userData) {
+        // First, try to get user from localStorage
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          const userData = JSON.parse(storedUser);
+          console.log('Loaded user from localStorage:', userData);
           setUser(userData);
-        } else {
-          // If no valid user data, ensure user is null
+        }
+
+        // Then try to get current user from the API to verify session
+        const userData = await getCurrentUser();
+        console.log('Loaded user data from API:', userData);
+
+        if (userData && userData.email) {
+          setUser(userData);
+          // Update localStorage with fresh data
+          localStorage.setItem('user', JSON.stringify(userData));
+        } else if (!storedUser) {
+          // Only set to null if we didn't have stored user data
           setUser(null);
         }
       } catch (err) {
@@ -40,23 +50,11 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // Login function
-  const login = async (userData) => {
-    console.log('Logging in user:', userData);
-
-    // Validate user data before setting
-    if (userData && userData.id) {
-      setUser(userData);
-      setError(null);
-    } else if (userData === null) {
-      // Explicit null means clear user (for logout/error cases)
-      setUser(null);
-      setError(null);
-    } else {
-      // Invalid user data
-      console.error('Invalid user data provided to login:', userData);
-      setUser(null);
-      setError('Invalid user data received');
-    }
+  const login = (userData) => {
+    console.log('Setting user data in context:', userData);
+    setUser(userData);
+    // Store in localStorage for persistence
+    localStorage.setItem('user', JSON.stringify(userData));
   };
 
   // Logout function
@@ -150,8 +148,10 @@ export const AuthProvider = ({ children }) => {
 // Custom hook to use the auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };
+
+export default AuthContext;

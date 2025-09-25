@@ -183,11 +183,14 @@ export default function Dashboard() {
                             </Flex>
                           )}
 
-                          <Box>
+                          <Flex gap="2">
                             <Button variant="soft" size="2" onClick={() => router.push('/pets')}>
                               View All Pets
                             </Button>
-                          </Box>
+                            <Button variant="soft" size="2" onClick={() => router.push('/pets/medications')}>
+                              View Medications
+                            </Button>
+                          </Flex>
                         </Flex>
                       </Card>
 

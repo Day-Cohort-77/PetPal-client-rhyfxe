@@ -286,42 +286,21 @@ export default function Settings() {
                       <Heading size="4">Appearance Settings</Heading>
 
                       <Box>
-                        <SettingItem
-                          label="Use System Theme Preference"
-                          description="Automatically switch between light and dark mode based on your system settings"
-                          control={
-                            <Switch
-                              checked={localThemeSettings.useSystemPreference}
-                              onCheckedChange={(checked) => handleThemeChange('useSystemPreference', checked)}
-                            />
-                          }
-                        />
-                      </Box>
-
-                      <Box>
                         <Text size="2" weight="bold" mb="2">Theme</Text>
                         <Text size="2" color="gray" mb="2">
-                          {localThemeSettings.useSystemPreference
-                            ? 'Theme will follow your system preference'
-                            : 'Choose your preferred theme'
-                          }
+                          Choose your preferred theme
                         </Text>
                         <RadioGroup.Root
                           value={localThemeSettings.theme}
                           onValueChange={(value) => handleThemeChange('theme', value)}
-                          disabled={localThemeSettings.useSystemPreference}
                         >
                           <Flex direction="column" gap="2">
-                            <Text as="label" size="2" style={{
-                              opacity: localThemeSettings.useSystemPreference ? 0.5 : 1
-                            }}>
+                            <Text as="label" size="2">
                               <Flex gap="2" align="center">
                                 <RadioGroup.Item value="light" /> Light
                               </Flex>
                             </Text>
-                            <Text as="label" size="2" style={{
-                              opacity: localThemeSettings.useSystemPreference ? 0.5 : 1
-                            }}>
+                            <Text as="label" size="2">
                               <Flex gap="2" align="center">
                                 <RadioGroup.Item value="dark" /> Dark
                               </Flex>

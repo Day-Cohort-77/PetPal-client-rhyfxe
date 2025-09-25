@@ -1,21 +1,31 @@
-// Base URL for the API
-const API_BASE_URL = 'http://localhost:5000';
+// Base API configuration
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
-// Default headers for all requests
-const defaultHeaders = {
-  'Content-Type': 'application/json',
+// Helper function to get headers for API requests
+const getHeaders = () => {
+  console.log('[ApiService] Getting headers for API request');
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+  
+  console.log('[ApiService] Headers prepared (using cookies for auth):', headers);
+  return headers;
 };
 
 // Helper function to handle API responses
 const handleResponse = async (response) => {
+  console.log(`[ApiService] Handling response with status: ${response.status}`);
+  
   // Check if the response is ok (status in the range 200-299)
   if (!response.ok) {
     // If the response is 401 Unauthorized, redirect to login
-    // But only if we're not already on the login page
     if (response.status === 401) {
-      // Check if we're already on the login page to prevent redirect loops
-      if (!window.location.pathname.includes('/auth/login')) {
-        window.location.href = '/auth/login';
+      console.log('[ApiService] 401 Unauthorized - redirecting to login');
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('user');
+        if (!window.location.pathname.includes('/auth/login')) {
+          window.location.href = '/auth/login';
+        }
       }
       return null;
     }
@@ -24,97 +34,124 @@ const handleResponse = async (response) => {
     let errorData;
     try {
       errorData = await response.json();
+      console.log('[ApiService] Error response data:', errorData);
     } catch (error) {
+      console.log('[ApiService] Failed to parse error response, using statusText');
       errorData = { message: response.statusText };
     }
 
     // Throw an error with the status and message
-    throw new Error(
-      `API Error ${response.status}: ${errorData.message || 'Unknown error'}`
-    );
+    const errorMessage = `API Error ${response.status}: ${errorData.message || 'Unknown error'}`;
+    console.error('[ApiService]', errorMessage);
+    throw new Error(errorMessage);
   }
 
   // If the response is 204 No Content, return null
   if (response.status === 204) {
+    console.log('[ApiService] 204 No Content response');
     return null;
   }
 
   // Otherwise, parse the JSON response
-  return response.json();
+  const responseData = await response.json();
+  console.log('[ApiService] Response data:', responseData);
+  return responseData;
 };
 
 // GET request
 export const get = async (endpoint, options = {}) => {
-  const url = `${API_BASE_URL}${endpoint}`;
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      ...defaultHeaders,
-      ...options.headers,
-    },
-    credentials: 'include', // Include cookies in the request
-    ...options,
-  });
-
-  return handleResponse(response);
+  console.log(`[ApiService] GET request to: ${endpoint}`);
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'GET',
+      headers: {
+        ...getHeaders(),
+        ...options.headers,
+      },
+      credentials: 'include', // Include cookies for authentication
+      ...options,
+    });
+    
+    return await handleResponse(response);
+  } catch (error) {
+    console.error(`[ApiService] GET request failed:`, error);
+    throw error;
+  }
 };
 
 // POST request
 export const post = async (endpoint, data, options = {}) => {
-  const url = `${API_BASE_URL}${endpoint}`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      ...defaultHeaders,
-      ...options.headers,
-    },
-    credentials: 'include', // Include cookies in the request
-    body: JSON.stringify(data),
-    ...options,
-  });
-
-  return handleResponse(response);
+  console.log(`[ApiService] POST request to: ${endpoint}`, data);
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        ...getHeaders(),
+        ...options.headers,
+      },
+      credentials: 'include', // Include cookies for authentication
+      body: JSON.stringify(data),
+      ...options,
+    });
+    
+    return await handleResponse(response);
+  } catch (error) {
+    console.error(`[ApiService] POST request failed:`, error);
+    throw error;
+  }
 };
 
 // PUT request
 export const put = async (endpoint, data, options = {}) => {
-  const url = `${API_BASE_URL}${endpoint}`;
-  const response = await fetch(url, {
-    method: 'PUT',
-    headers: {
-      ...defaultHeaders,
-      ...options.headers,
-    },
-    credentials: 'include', // Include cookies in the request
-    body: JSON.stringify(data),
-    ...options,
-  });
-
-  return handleResponse(response);
+  console.log(`[ApiService] PUT request to: ${endpoint}`, data);
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'PUT',
+      headers: {
+        ...getHeaders(),
+        ...options.headers,
+      },
+      credentials: 'include', // Include cookies for authentication
+      body: JSON.stringify(data),
+      ...options,
+    });
+    
+    return await handleResponse(response);
+  } catch (error) {
+    console.error(`[ApiService] PUT request failed:`, error);
+    throw error;
+  }
 };
 
 // DELETE request
 export const del = async (endpoint, options = {}) => {
-  const url = `${API_BASE_URL}${endpoint}`;
-  const response = await fetch(url, {
-    method: 'DELETE',
-    headers: {
-      ...defaultHeaders,
-      ...options.headers,
-    },
-    credentials: 'include', // Include cookies in the request
-    ...options,
-  });
-
-  return handleResponse(response);
+  console.log(`[ApiService] DELETE request to: ${endpoint}`);
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'DELETE',
+      headers: {
+        ...getHeaders(),
+        ...options.headers,
+      },
+      credentials: 'include', // Include cookies for authentication
+      ...options,
+    });
+    
+    return await handleResponse(response);
+  } catch (error) {
+    console.error(`[ApiService] DELETE request failed:`, error);
+    throw error;
+  }
 };
 
-// Export a default object with all methods
+// Export the API service object
 const apiService = {
   get,
   post,
   put,
   delete: del,
+  getHeaders,
+  baseURL: API_BASE_URL,
 };
 
 export default apiService;

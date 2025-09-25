@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { login } from '../../../services/authService';
 import { useAuth } from '../../../contexts/AuthContext';
 import Link from 'next/link';
 import Navbar from '../../../components/Navbar';
@@ -23,12 +22,15 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      const userData = await login({ email, password });
-      authLogin(userData);
-      router.push('/');
+      console.log('Attempting login via AuthContext:', email);
+      const response = await authLogin(email, password);
+      console.log('Login successful, response:', response);
+      
+      // AuthContext login should handle the user state automatically
+      router.push('/dashboard'); // Redirect to dashboard
     } catch (err) {
       console.error('Login error:', err);
-      setError('Invalid email or password. Please try again.');
+      setError(err.message || 'Invalid email or password. Please try again.');
     } finally {
       setIsLoading(false);
     }

@@ -21,13 +21,18 @@ export default function AllMedicationsPage() {
         
         if (petsData && petsData.length > 0) {
           console.log('First pet details:', petsData[0]);
-          console.log('All pet IDs:', petsData.map(pet => ({ id: pet.id, name: pet.name })));
+          console.log('All pet IDs:', petsData.map(pet => ({ 
+            id: pet.id || pet.Id, 
+            name: pet.name || pet.Name,
+            idType: typeof (pet.id || pet.Id)
+          })));
         }
         
         setPets(petsData || []);
         if (petsData && petsData.length > 0) {
-          const firstPetId = petsData[0].id;
-          console.log('Setting selected pet ID to:', firstPetId);
+          // Handle both camelCase and PascalCase from API
+          const firstPetId = petsData[0].id || petsData[0].Id;
+          console.log('Setting selected pet ID to:', firstPetId, 'type:', typeof firstPetId);
           setSelectedPetId(firstPetId);
         }
       } catch (error) {
@@ -51,11 +56,15 @@ export default function AllMedicationsPage() {
             className="w-full p-2 border rounded"
           >
             <option value="">Select a pet</option>
-            {pets.map((pet) => (
-              <option key={pet.id} value={pet.id}>
-                {pet.name}
-              </option>
-            ))}
+            {pets.map((pet) => {
+              const petId = pet.id || pet.Id;
+              const petName = pet.name || pet.Name;
+              return (
+                <option key={petId} value={petId}>
+                  {petName}
+                </option>
+              );
+            })}
           </select>
         </div>
 

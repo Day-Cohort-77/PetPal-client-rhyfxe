@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../contexts/AuthContext';
 import { createPet } from '../../../services/petService';
+import { uploadPetImage } from '../../../services/fileUploadService';
 import Navbar from '../../../components/Navbar';
 import FeatureErrorBoundary from '../../../components/FeatureErrorBoundary';
 import { Container, Heading, Text, Flex, Card, TextField, Button, Box, Grid, Select, TextArea } from '@radix-ui/themes';
@@ -68,7 +69,7 @@ export default function AddPet() {
     setIsLoading(true);
 
     try {
-      // Create FormData for file upload
+      // Create FormData for pet data
       const petData = { ...formData };
 
       // Convert birthDate to ISO format if needed
@@ -76,6 +77,19 @@ export default function AddPet() {
         const date = new Date(petData.birthDate);
         if (!isNaN(date.getTime())) {
           petData.birthDate = date.toISOString();
+        }
+      }
+
+      // Upload image first if one was selected
+      if (imageFile) {
+        try {
+          const uploadResult = await uploadPetImage(imageFile);
+          petData.imageUrl = uploadResult.imageUrl;
+        } catch (uploadError) {
+          console.error('Error uploading image:', uploadError);
+          setError('Failed to upload pet image. Please try again.');
+          setIsLoading(false);
+          return;
         }
       }
 

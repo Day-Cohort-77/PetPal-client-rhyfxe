@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 
 const MedicationsList = ({ petId }) => {
   const [filters, setFilters] = useState({
-    sortBy: 'StartDate',
+    sortBy: 'startdate',
     sortOrder: 'desc',
     isActive: null,
     medicationName: '',
@@ -14,11 +14,23 @@ const MedicationsList = ({ petId }) => {
 
   const { data: medications, isLoading, error } = usePetMedications(petId, filters);
 
-  console.log('MedicationsList - petId:', petId);
+  console.log('MedicationsList - petId:', petId, 'type:', typeof petId);
   console.log('MedicationsList - filters:', filters);
   console.log('MedicationsList - medications:', medications);
   console.log('MedicationsList - isLoading:', isLoading);
   console.log('MedicationsList - error:', error);
+
+  // Debug date values if medications exist
+  if (medications && medications.length > 0) {
+    console.log('Sample medication dates:', {
+      startDate: medications[0].startDate,
+      endDate: medications[0].endDate,
+      startDateType: typeof medications[0].startDate,
+      endDateType: typeof medications[0].endDate,
+      name: medications[0].name,
+      dosage: medications[0].dosage
+    });
+  }
 
   const handleSortChange = (sortBy) => {
     setFilters(prev => ({
@@ -42,8 +54,35 @@ const MedicationsList = ({ petId }) => {
     }));
   };
 
-  if (isLoading) return <div>Loading medications...</div>;
-  if (error) return <div>Error loading medications: {error.message}</div>;
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <span className="ml-2">Loading medications...</span>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="text-center py-8">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <h3 className="text-lg font-medium text-red-800 mb-2">
+            {error.message.includes('403') ? '🔒 Access Restricted' : '❌ Error Loading Medications'}
+          </h3>
+          <p className="text-red-600 mb-4">{error.message}</p>
+          {error.message.includes('401') && (
+            <button
+              onClick={() => window.location.href = '/auth/login'}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            >
+              Go to Login
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   // Handle empty medications array
   if (medications && medications.length === 0) {
@@ -97,24 +136,14 @@ const MedicationsList = ({ petId }) => {
                 Name {filters.sortBy === 'name' && (filters.sortOrder === 'asc' ? '↑' : '↓')}
               </th>
               <th className="px-6 py-3 text-left">Dosage</th>
+              <th className="px-6 py-3 text-left">Frequency</th>
               <th 
                 className="px-6 py-3 text-left cursor-pointer"
-                onClick={() => handleSortChange('frequency')}
+                onClick={() => handleSortChange('startdate')}
               >
-                Frequency {filters.sortBy === 'frequency' && (filters.sortOrder === 'asc' ? '↑' : '↓')}
+                Start Date {filters.sortBy === 'startdate' && (filters.sortOrder === 'asc' ? '↑' : '↓')}
               </th>
-              <th 
-                className="px-6 py-3 text-left cursor-pointer"
-                onClick={() => handleSortChange('StartDate')}
-              >
-                Start Date {filters.sortBy === 'StartDate' && (filters.sortOrder === 'asc' ? '↑' : '↓')}
-              </th>
-              <th 
-                className="px-6 py-3 text-left cursor-pointer"
-                onClick={() => handleSortChange('enddate')}
-              >
-                End Date {filters.sortBy === 'enddate' && (filters.sortOrder === 'asc' ? '↑' : '↓')}
-              </th>
+              <th className="px-6 py-3 text-left">End Date</th>
               <th className="px-6 py-3 text-left">Status</th>
             </tr>
           </thead>
@@ -125,12 +154,31 @@ const MedicationsList = ({ petId }) => {
                 <td className="px-6 py-4">{medication.dosage}</td>
                 <td className="px-6 py-4">{medication.frequency}</td>
                 <td className="px-6 py-4">
-                  {format(new Date(medication.startDate), 'MMM d, yyyy')}
+                  {(() => {
+                    try {
+                      const startDate = new Date(medication.startDate);
+                      return isNaN(startDate.getTime()) 
+                        ? 'Invalid Date' 
+                        : format(startDate, 'MMM d, yyyy');
+                    } catch (error) {
+                      console.error('Error formatting start date:', medication.startDate, error);
+                      return 'Invalid Date';
+                    }
+                  })()}
                 </td>
                 <td className="px-6 py-4">
-                  {medication.endDate 
-                    ? format(new Date(medication.endDate), 'MMM d, yyyy')
-                    : 'Ongoing'}
+                  {(() => {
+                    if (!medication.endDate) return 'Ongoing';
+                    try {
+                      const endDate = new Date(medication.endDate);
+                      return isNaN(endDate.getTime()) 
+                        ? 'Invalid Date' 
+                        : format(endDate, 'MMM d, yyyy');
+                    } catch (error) {
+                      console.error('Error formatting end date:', medication.endDate, error);
+                      return 'Invalid Date';
+                    }
+                  })()}
                 </td>
                 <td className="px-6 py-4">
                   <span className={`px-2 py-1 rounded text-sm ${

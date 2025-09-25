@@ -7,7 +7,15 @@ export const getAllPets = async () => {
 
 // Get pets for the current user
 export const getUserPets = async () => {
-  return get('/user/pets');
+  try {
+    console.log('getUserPets: Making API call to /user/pets');
+    const response = await get('/user/pets');
+    console.log('getUserPets: API response:', response);
+    return response;
+  } catch (error) {
+    console.error('getUserPets: API call failed:', error);
+    throw error;
+  }
 };
 
 // Get a specific pet by ID

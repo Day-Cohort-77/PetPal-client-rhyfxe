@@ -3,9 +3,7 @@ import "./globals.css";
 import { Theme } from '@radix-ui/themes';
 import '@radix-ui/themes/styles.css';
 import { AuthProvider } from '../contexts/AuthContext';
-import { ThemeProvider } from '../contexts/ThemeContext';
-import DynamicThemeWrapper from '../components/DynamicThemeWrapper';
-import AuthThemeBridge from '../components/AuthThemeBridge';
+import { QueryProvider } from '../providers/QueryProvider';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,15 +24,13 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        <AuthProvider>
-          <ThemeProvider>
-            <AuthThemeBridge>
-              <DynamicThemeWrapper>
-                {children}
-              </DynamicThemeWrapper>
-            </AuthThemeBridge>
-          </ThemeProvider>
-        </AuthProvider>
+        <Theme appearance="light" accentColor="blue" radius="medium">
+          <QueryProvider>
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+          </QueryProvider>
+        </Theme>
       </body>
     </html>
   );

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import Navbar from '../../components/Navbar';
 import FeatureErrorBoundary from '../../components/FeatureErrorBoundary';
 import ProtectedRoute from '../../components/ProtectedRoute';
@@ -10,11 +11,20 @@ import { Container, Heading, Text, Flex, Card, Button, Box, Tabs, Switch, RadioG
 
 export default function Settings() {
   const { user } = useAuth();
+  const { themeSettings, updateTheme, refreshTheme, isLoading: themeLoading } = useTheme();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Local theme settings for form management
+  const [localThemeSettings, setLocalThemeSettings] = useState({
+    theme: 'light',
+    accentColor: 'blue',
+    fontSize: 'medium',
+    useSystemPreference: false,
+  });
 
   // Notification settings
   const [notificationSettings, setNotificationSettings] = useState({
@@ -28,30 +38,22 @@ export default function Settings() {
     reminderLeadTime: '1_day',
   });
 
-  // Theme settings
-  const [themeSettings, setThemeSettings] = useState({
-    theme: 'light',
-    accentColor: 'blue',
-    fontSize: 'medium',
-  });
-
-  // Check if user is authenticated
+  // Update local settings when theme context changes
   useEffect(() => {
-    // Fetch user settings
-    const fetchSettings = async () => {
-      try {
-        // In a real app, this would be an API call
-        // For now, we'll use default settings
-        setIsLoading(false);
-      } catch (err) {
-        console.error('Error fetching settings:', err);
-        setError('Failed to load settings. Please try again.');
-        setIsLoading(false);
-      }
-    };
+    if (themeSettings) {
+      setLocalThemeSettings(themeSettings);
+    }
+  }, [themeSettings]);
 
-    fetchSettings();
-  }, [user, router]);
+  // Check if user is authenticated and load settings
+  useEffect(() => {
+    // Wait for both user and theme to be loaded
+    if (!themeLoading && user) {
+      setIsLoading(false);
+    } else if (!themeLoading && !user) {
+      setIsLoading(false);
+    }
+  }, [user, router, themeLoading]);
 
   const handleNotificationChange = (id, value) => {
     setNotificationSettings(prev => ({
@@ -61,10 +63,15 @@ export default function Settings() {
   };
 
   const handleThemeChange = (id, value) => {
-    setThemeSettings(prev => ({
-      ...prev,
+    const updatedSettings = {
+      ...localThemeSettings,
       [id]: value
-    }));
+    };
+
+    setLocalThemeSettings(updatedSettings);
+
+    // Update theme context for real-time preview (but don't save yet)
+    updateTheme(updatedSettings);
   };
 
   const handleSaveNotifications = async () => {
@@ -90,17 +97,22 @@ export default function Settings() {
     setIsSaving(true);
 
     try {
-      // In a real app, this would be an API call to save theme settings
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setSuccess('Theme settings saved successfully');
+      // Save theme settings via context (which handles API calls)
+      const result = await updateTheme(localThemeSettings);
 
-      // Apply theme changes
-      // This would typically update the theme context or localStorage
-      // For now, we'll just log the changes
-      console.log('Theme settings updated:', themeSettings);
+      if (result.success) {
+        setSuccess('Theme settings saved successfully');
+      } else {
+        throw new Error(result.error || 'Failed to save theme settings');
+      }
     } catch (err) {
       console.error('Error saving theme settings:', err);
       setError('Failed to save theme settings. Please try again.');
+
+      // Revert to previously saved settings on error
+      if (themeSettings) {
+        setLocalThemeSettings(themeSettings);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -275,8 +287,11 @@ export default function Settings() {
 
                       <Box>
                         <Text size="2" weight="bold" mb="2">Theme</Text>
+                        <Text size="2" color="gray" mb="2">
+                          Choose your preferred theme
+                        </Text>
                         <RadioGroup.Root
-                          value={themeSettings.theme}
+                          value={localThemeSettings.theme}
                           onValueChange={(value) => handleThemeChange('theme', value)}
                         >
                           <Flex direction="column" gap="2">
@@ -290,11 +305,6 @@ export default function Settings() {
                                 <RadioGroup.Item value="dark" /> Dark
                               </Flex>
                             </Text>
-                            <Text as="label" size="2">
-                              <Flex gap="2" align="center">
-                                <RadioGroup.Item value="system" /> System Default
-                              </Flex>
-                            </Text>
                           </Flex>
                         </RadioGroup.Root>
                       </Box>
@@ -302,7 +312,7 @@ export default function Settings() {
                       <Box>
                         <Text size="2" weight="bold" mb="2">Accent Color</Text>
                         <RadioGroup.Root
-                          value={themeSettings.accentColor}
+                          value={localThemeSettings.accentColor}
                           onValueChange={(value) => handleThemeChange('accentColor', value)}
                         >
                           <Flex wrap="wrap" gap="2">
@@ -341,7 +351,7 @@ export default function Settings() {
                       <Box>
                         <Text size="2" weight="bold" mb="2">Font Size</Text>
                         <RadioGroup.Root
-                          value={themeSettings.fontSize}
+                          value={localThemeSettings.fontSize}
                           onValueChange={(value) => handleThemeChange('fontSize', value)}
                         >
                           <Flex direction="column" gap="2">

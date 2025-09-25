@@ -10,14 +10,28 @@ const defaultHeaders = {
 const handleResponse = async (response) => {
   // Check if the response is ok (status in the range 200-299)
   if (!response.ok) {
-    // If the response is 401 Unauthorized, redirect to login
-    // But only if we're not already on the login page
+    // If the response is 401 Unauthorized
     if (response.status === 401) {
-      // Check if we're already on the login page to prevent redirect loops
-      if (!window.location.pathname.includes('/auth/login')) {
+      // Only redirect if we're not on a login/auth page and not making a login request
+      const isAuthPage = window.location.pathname.includes('/auth/');
+      const isLoginRequest = response.url.includes('/auth/login');
+
+      if (!isAuthPage && !isLoginRequest) {
         window.location.href = '/auth/login';
+        return null; // Don't throw error after redirect
       }
-      return null;
+
+      // For login requests or auth pages, throw an error with proper context
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch (error) {
+        errorData = { message: 'Unauthorized' };
+      }
+
+      throw new Error(
+        `API Error ${response.status}: ${errorData.message || 'Unauthorized'}`
+      );
     }
 
     // Try to parse the error response

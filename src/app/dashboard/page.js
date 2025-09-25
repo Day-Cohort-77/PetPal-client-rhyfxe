@@ -21,9 +21,18 @@ export default function Dashboard() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    // Only fetch data if we have a valid user
+    if (!user || !user.id) {
+      console.log('No valid user for dashboard, skipping data fetch');
+      setIsLoading(false);
+      return;
+    }
+
     // Fetch user's pets and upcoming events
     const fetchDashboardData = async () => {
       try {
+        console.log('Fetching dashboard data for user:', user.id);
+
         // Fetch pets
         const petsData = await getUserPets();
         setPets(petsData || []);
@@ -150,7 +159,7 @@ export default function Dashboard() {
                           </Flex>
 
                           {pets.length === 0 ? (
-                            <Text>You don't have any pets yet. Add your first pet to get started.</Text>
+                            <Text>You don&apos;t have any pets yet. Add your first pet to get started.</Text>
                           ) : (
                             <Flex direction="column" gap="3">
                               {pets.map((pet) => (

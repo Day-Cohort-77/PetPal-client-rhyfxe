@@ -21,7 +21,10 @@ export const getCurrentUser = async () => {
     return await get('/auth/me');
   } catch (error) {
     // If there's an error (like 401 Unauthorized), return null
-    console.error('Error getting current user:', error);
+    // Only log non-401 errors to avoid console spam for expected auth failures
+    if (!error.message.includes('401')) {
+      console.error('Error getting current user:', error);
+    }
     return null;
   }
 };

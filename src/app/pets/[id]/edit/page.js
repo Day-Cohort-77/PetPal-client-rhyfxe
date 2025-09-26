@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { getPetById, updatePet } from '../../../../services/petService';
-import { uploadPetImage, getImageUrl } from '../../../../services/fileUploadService'; // Add getImageUrl import
+import { uploadPetImage, getImageUrl } from '../../../../services/fileUploadService';
 import Navbar from '../../../../components/Navbar';
 import ProtectedRoute from '../../../../components/ProtectedRoute';
 import FeatureErrorBoundary from '../../../../components/FeatureErrorBoundary';

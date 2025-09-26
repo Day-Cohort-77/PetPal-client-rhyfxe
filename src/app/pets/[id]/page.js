@@ -23,6 +23,62 @@ export default function PetDetails() {
   // Check if user has medication management permissions (Admin or Veterinarian)
   const canManageMedications = isAdmin() || isVeterinarian();
 
+  // Helper function to format frequency display
+  const formatFrequency = (frequency) => {
+    if (!frequency) return 'Not specified';
+    
+    const frequencyMap = {
+      'once_daily': 'Once daily',
+      'twice_daily': 'Twice daily', 
+      'three_times_daily': 'Three times daily',
+      'four_times_daily': 'Four times daily',
+      'every_other_day': 'Every other day',
+      'weekly': 'Weekly',
+      'as_needed': 'As needed (PRN)',
+      'custom': 'Custom'
+    };
+    
+    return frequencyMap[frequency] || frequency;
+  };
+
+  // Helper function to format dosage display
+  const formatDosage = (medication) => {
+    if (!medication) return 'No dosage specified';
+    
+    console.log('🔍 Formatting dosage for:', {
+      name: medication.name,
+      dosage: medication.dosage,
+      dosageUnit: medication.dosageUnit,
+      type: typeof medication.dosage
+    });
+    
+    // If dosage already contains a unit (like "25 mg" or "2 drops"), return as is
+    if (medication.dosage && /\d+\s+(mg|ml|g|tablet|capsule|drop|puff|unit|cc|tsp)s?$/i.test(medication.dosage)) {
+      return medication.dosage;
+    }
+    
+    // If we have separate dosage and dosageUnit fields, combine them
+    if (medication.dosage && medication.dosageUnit) {
+      return `${medication.dosage} ${medication.dosageUnit}`;
+    }
+    
+    // If only dosage exists, check if it needs a unit
+    if (medication.dosage) {
+      const dosageStr = String(medication.dosage);
+      
+      // Check if it's just a number (like "25")
+      if (/^\d+(\.\d+)?$/.test(dosageStr)) {
+        // For Rimadyl and other pain medications, mg is most common
+        // But we should ideally get this from the backend
+        return `${dosageStr} mg`;
+      }
+      
+      return dosageStr;
+    }
+    
+    return 'No dosage specified';
+  };
+
   const [pet, setPet] = useState(null);
   const [petAppointments, setPetAppointments] = useState([]);
   const [petMedications, setPetMedications] = useState([]);
@@ -44,6 +100,10 @@ export default function PetDetails() {
 
         // Fetch pet medications
         const medicationsData = await getMedicationsForPet(petId);
+        console.log('🔍 Medications data from backend:', medicationsData);
+        if (medicationsData && medicationsData.length > 0) {
+          console.log('📊 First medication structure:', medicationsData[0]);
+        }
         setPetMedications(medicationsData || []);
       } catch (err) {
         console.error('Error fetching pet data:', err);
@@ -347,28 +407,33 @@ export default function PetDetails() {
                         <Flex direction="column" gap="3">
                           {petMedications.map((medication) => (
                             <Card key={medication.id} variant="outline">
-                              <Flex gap="3" p="3" align="start">
+                              <Flex gap="3" p="4" align="start">
                                 <Box style={{ flex: 1 }}>
-                                  <Flex justify="between" align="start" mb="2">
+                                  {/* Prominent medication name header */}
+                                  <Flex justify="between" align="center" mb="3" pb="2" style={{ borderBottom: '1px solid var(--gray-4)' }}>
                                     <Box>
-                                      <Text size="3" weight="bold">{medication.medicationName}</Text>
-                                      <Text size="2" color="gray">{medication.dosage}</Text>
+                                      <Heading size="5" mb="1" color="blue">
+                                        {medication.name || medication.medicationName || 'Unnamed Medication'}
+                                      </Heading>
+                                      <Text size="3" weight="medium" color="gray">
+                                        {formatDosage(medication)}
+                                      </Text>
                                     </Box>
                                     <Flex align="center" gap="2">
-                                      <Badge color={medication.isActive ? 'green' : 'gray'}>
-                                        {medication.isActive ? 'Active' : 'Inactive'}
+                                      <Badge color={medication.isActive !== false ? 'green' : 'gray'} size="2">
+                                        {medication.isActive !== false ? 'Active' : 'Inactive'}
                                       </Badge>
                                       {canManageMedications && (
                                         <Flex gap="1">
                                           <IconButton
-                                            size="1"
+                                            size="2"
                                             variant="ghost"
                                             onClick={() => router.push(`/pets/${petId}/medications/${medication.id}/edit`)}
                                           >
                                             <FiEdit2 />
                                           </IconButton>
                                           <IconButton
-                                            size="1"
+                                            size="2"
                                             variant="ghost"
                                             color="red"
                                             onClick={() => handleDeleteMedication(medication.id)}
@@ -380,36 +445,52 @@ export default function PetDetails() {
                                     </Flex>
                                   </Flex>
                                   
-                                  <Grid columns="2" gap="2" mt="2">
+                                  {/* Prescribed by information prominently displayed */}
+                                  {medication.prescriber && (
+                                    <Box mb="3">
+                                      <Text size="2" weight="bold" color="green">
+                                        Prescribed by: {medication.prescriber}
+                                      </Text>
+                                    </Box>
+                                  )}
+                                  
+                                  <Grid columns="2" gap="3" mt="2">
                                     <Box>
-                                      <Text size="1" weight="bold">Frequency:</Text>
-                                      <Text size="1">{medication.frequency || 'Not specified'}</Text>
+                                      <Text size="2" weight="bold" color="gray">Frequency:</Text>
+                                      <Text size="2">{formatFrequency(medication.frequency) || 'Not specified'}</Text>
                                     </Box>
                                     <Box>
-                                      <Text size="1" weight="bold">Duration:</Text>
-                                      <Text size="1">{medication.duration || 'Not specified'}</Text>
+                                      <Text size="2" weight="bold" color="gray">Duration:</Text>
+                                      <Text size="2">{medication.duration || 'Ongoing'}</Text>
                                     </Box>
                                     <Box>
-                                      <Text size="1" weight="bold">Start Date:</Text>
-                                      <Text size="1">{formatDate(medication.startDate)}</Text>
+                                      <Text size="2" weight="bold" color="gray">Start Date:</Text>
+                                      <Text size="2">{formatDate(medication.startDate)}</Text>
                                     </Box>
                                     <Box>
-                                      <Text size="1" weight="bold">End Date:</Text>
-                                      <Text size="1">{medication.endDate ? formatDate(medication.endDate) : 'Ongoing'}</Text>
+                                      <Text size="2" weight="bold" color="gray">End Date:</Text>
+                                      <Text size="2">{medication.endDate ? formatDate(medication.endDate) : 'Ongoing'}</Text>
                                     </Box>
                                   </Grid>
 
                                   {medication.instructions && (
-                                    <Box mt="2">
-                                      <Text size="1" weight="bold">Instructions:</Text>
-                                      <Text size="1">{medication.instructions}</Text>
+                                    <Box mt="3" p="2" style={{ backgroundColor: 'var(--blue-2)', borderRadius: '6px' }}>
+                                      <Text size="2" weight="bold" color="blue">Instructions:</Text>
+                                      <Text size="2" mt="1">{medication.instructions}</Text>
                                     </Box>
                                   )}
 
                                   {medication.notes && (
+                                    <Box mt="2" p="2" style={{ backgroundColor: 'var(--gray-2)', borderRadius: '6px' }}>
+                                      <Text size="2" weight="bold" color="gray">Notes:</Text>
+                                      <Text size="2" mt="1">{medication.notes}</Text>
+                                    </Box>
+                                  )}
+
+                                  {medication.reason && (
                                     <Box mt="2">
-                                      <Text size="1" weight="bold">Notes:</Text>
-                                      <Text size="1">{medication.notes}</Text>
+                                      <Text size="2" weight="bold" color="gray">Reason for prescription:</Text>
+                                      <Text size="2">{medication.reason}</Text>
                                     </Box>
                                   )}
                                 </Box>

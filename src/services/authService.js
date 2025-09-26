@@ -163,6 +163,12 @@ class AuthService {
 const authService = new AuthService();
 
 // Export individual methods for backward compatibility
+export const login = (email, password) => authService.login(email, password);
+export const register = (userData) => authService.register(userData);
 export const getCurrentUser = () => authService.getCurrentUser();
+export const logout = () => authService.logout();
+export const updateProfile = (userData) => authService.updateProfile(userData);
+export const isAuthenticated = () => authService.isAuthenticated();
+export const getUser = () => authService.getUser();
 
 export default authService;

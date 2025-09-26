@@ -11,6 +11,7 @@ import ProtectedRoute from '../../components/ProtectedRoute';
 import { Container, Heading, Text, Flex, Card, Button, Box, Grid, Avatar, Tabs } from '@radix-ui/themes';
 import Link from 'next/link';
 import { FiCalendar, FiClock, FiAlertCircle } from 'react-icons/fi';
+import { getImageUrl } from '../../services/fileUploadService';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -168,7 +169,7 @@ export default function Dashboard() {
                                     <Flex align="center" gap="3" p="2">
                                       <Avatar
                                         size="3"
-                                        src={pet.imageUrl}
+                                        src={getImageUrl(pet.imageUrl)}
                                         fallback={pet.name.charAt(0)}
                                         radius="full"
                                       />

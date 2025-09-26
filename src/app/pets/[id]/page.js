@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '../../../contexts/AuthContext';
 import { getPetById, updatePet, deletePet } from '../../../services/petService';
 import { getPetAppointments } from '../../../services/appointmentService';
+import { getMedicationsForPet } from '../../../services/medicationService';
 import Navbar from '../../../components/Navbar';
 import FeatureErrorBoundary from '../../../components/FeatureErrorBoundary';
 import ProtectedRoute from '../../../components/ProtectedRoute';
@@ -14,13 +15,17 @@ const Behavior = dynamic(() => import('./behavior/page'), { ssr: false });
 import dynamic from 'next/dynamic';
 
 export default function PetDetails() {
-  const { user } = useAuth();
+  const { user, isAdmin, isVeterinarian } = useAuth();
   const router = useRouter();
   const params = useParams();
   const petId = params.id;
+  
+  // Check if user has medication management permissions (Admin or Veterinarian)
+  const canManageMedications = isAdmin() || isVeterinarian();
 
   const [pet, setPet] = useState(null);
   const [petAppointments, setPetAppointments] = useState([]);
+  const [petMedications, setPetMedications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -36,6 +41,10 @@ export default function PetDetails() {
         // Fetch pet appointments
         const appointmentsData = await getPetAppointments(petId);
         setPetAppointments(appointmentsData || []);
+
+        // Fetch pet medications
+        const medicationsData = await getMedicationsForPet(petId);
+        setPetMedications(medicationsData || []);
       } catch (err) {
         console.error('Error fetching pet data:', err);
         setError('Failed to load pet data. Please try again.');
@@ -61,6 +70,32 @@ export default function PetDetails() {
       console.error('Error deleting pet:', err);
       setError('Failed to delete pet. Please try again.');
       setIsDeleteDialogOpen(false);
+    }
+  };
+
+  const handleDeleteMedication = async (medicationId) => {
+    if (!canManageMedications) {
+      alert('You do not have permission to delete medications.');
+      return;
+    }
+    
+    if (confirm('Are you sure you want to delete this medication?')) {
+      try {
+        // Import the delete medication service
+        const { deleteMedication } = await import('../../../services/medicationService');
+        await deleteMedication(medicationId);
+        
+        // Refresh the medications list
+        const medicationsData = await getMedicationsForPet(petId);
+        setPetMedications(medicationsData || []);
+      } catch (err) {
+        console.error('Error deleting medication:', err);
+        if (err.message.includes('403') || err.message.includes('Forbidden')) {
+          alert('You do not have permission to delete medications. Only Admins and Veterinarians can manage medications.');
+        } else {
+          alert('Failed to delete medication. Please try again.');
+        }
+      }
     }
   };
 
@@ -248,13 +283,21 @@ export default function PetDetails() {
                     <Flex direction="column" gap="4" p="4">
                       <Flex justify="between" align="center">
                         <Heading size="4">Health Records</Heading>
-                        <Button size="2" onClick={() => router.push(`/pets/${petId}/health-records/add`)}>
-                          Add Vet Visit
-                        </Button>
+                        {canManageMedications && (
+                          <Button size="2" onClick={() => router.push(`/pets/${petId}/health-records/add`)}>
+                            Add Health Record
+                          </Button>
+                        )}
                       </Flex>
 
-                      {/* Placeholder for health records list */}
-                      <Text>No health records found. Add a vet visit to get started.</Text>
+                      {/* Health records are viewable by all users, but only manageable by vets/admins */}
+                      <Text>
+                        No health records found. 
+                        {canManageMedications ? ' Add a health record to get started.' : ' Health records from veterinary visits will appear here.'}
+                      </Text>
+                      
+                      {/* TODO: Add health records list here - viewable by all users */}
+                      {/* Each record should have edit/delete buttons only visible to vets/admins */}
                     </Flex>
                   </Card>
                 </Tabs.Content>
@@ -264,13 +307,21 @@ export default function PetDetails() {
                     <Flex direction="column" gap="4" p="4">
                       <Flex justify="between" align="center">
                         <Heading size="4">Vaccinations</Heading>
-                        <Button size="2" onClick={() => router.push(`/pets/${petId}/vaccinations/add`)}>
-                          Add Vaccination
-                        </Button>
+                        {canManageMedications && (
+                          <Button size="2" onClick={() => router.push(`/pets/${petId}/vaccinations/add`)}>
+                            Add Vaccination
+                          </Button>
+                        )}
                       </Flex>
 
-                      {/* Placeholder for vaccinations list */}
-                      <Text>No vaccinations found. Add a vaccination to get started.</Text>
+                      {/* Vaccinations are viewable by all users, but only manageable by vets/admins */}
+                      <Text>
+                        No vaccinations found. 
+                        {canManageMedications ? ' Add a vaccination record to get started.' : ' Vaccination records from your veterinarian will appear here.'}
+                      </Text>
+                      
+                      {/* TODO: Add vaccinations list here - viewable by all users */}
+                      {/* Each vaccination should have edit/delete buttons only visible to vets/admins */}
                     </Flex>
                   </Card>
                 </Tabs.Content>
@@ -280,13 +331,93 @@ export default function PetDetails() {
                     <Flex direction="column" gap="4" p="4">
                       <Flex justify="between" align="center">
                         <Heading size="4">Medications</Heading>
-                        <Button size="2" onClick={() => router.push(`/pets/${petId}/medications/add`)}>
-                          Add Medication
-                        </Button>
+                        {canManageMedications && (
+                          <Button size="2" onClick={() => router.push(`/pets/${petId}/medications/add`)}>
+                            Add Medication
+                          </Button>
+                        )}
                       </Flex>
 
-                      {/* Placeholder for medications list */}
-                      <Text>No medications found. Add a medication to get started.</Text>
+                      {petMedications.length === 0 ? (
+                        <Text>
+                          No medications found. 
+                          {canManageMedications ? ' Add a medication to get started.' : ' Medications prescribed by your veterinarian will appear here.'}
+                        </Text>
+                      ) : (
+                        <Flex direction="column" gap="3">
+                          {petMedications.map((medication) => (
+                            <Card key={medication.id} variant="outline">
+                              <Flex gap="3" p="3" align="start">
+                                <Box style={{ flex: 1 }}>
+                                  <Flex justify="between" align="start" mb="2">
+                                    <Box>
+                                      <Text size="3" weight="bold">{medication.medicationName}</Text>
+                                      <Text size="2" color="gray">{medication.dosage}</Text>
+                                    </Box>
+                                    <Flex align="center" gap="2">
+                                      <Badge color={medication.isActive ? 'green' : 'gray'}>
+                                        {medication.isActive ? 'Active' : 'Inactive'}
+                                      </Badge>
+                                      {canManageMedications && (
+                                        <Flex gap="1">
+                                          <IconButton
+                                            size="1"
+                                            variant="ghost"
+                                            onClick={() => router.push(`/pets/${petId}/medications/${medication.id}/edit`)}
+                                          >
+                                            <FiEdit2 />
+                                          </IconButton>
+                                          <IconButton
+                                            size="1"
+                                            variant="ghost"
+                                            color="red"
+                                            onClick={() => handleDeleteMedication(medication.id)}
+                                          >
+                                            <FiTrash2 />
+                                          </IconButton>
+                                        </Flex>
+                                      )}
+                                    </Flex>
+                                  </Flex>
+                                  
+                                  <Grid columns="2" gap="2" mt="2">
+                                    <Box>
+                                      <Text size="1" weight="bold">Frequency:</Text>
+                                      <Text size="1">{medication.frequency || 'Not specified'}</Text>
+                                    </Box>
+                                    <Box>
+                                      <Text size="1" weight="bold">Duration:</Text>
+                                      <Text size="1">{medication.duration || 'Not specified'}</Text>
+                                    </Box>
+                                    <Box>
+                                      <Text size="1" weight="bold">Start Date:</Text>
+                                      <Text size="1">{formatDate(medication.startDate)}</Text>
+                                    </Box>
+                                    <Box>
+                                      <Text size="1" weight="bold">End Date:</Text>
+                                      <Text size="1">{medication.endDate ? formatDate(medication.endDate) : 'Ongoing'}</Text>
+                                    </Box>
+                                  </Grid>
+
+                                  {medication.instructions && (
+                                    <Box mt="2">
+                                      <Text size="1" weight="bold">Instructions:</Text>
+                                      <Text size="1">{medication.instructions}</Text>
+                                    </Box>
+                                  )}
+
+                                  {medication.notes && (
+                                    <Box mt="2">
+                                      <Text size="1" weight="bold">Notes:</Text>
+                                      <Text size="1">{medication.notes}</Text>
+                                    </Box>
+                                  )}
+                                </Box>
+                              </Flex>
+                            </Card>
+                          ))}
+                        </Flex>
+                      )}
                     </Flex>
                   </Card>
                 </Tabs.Content>

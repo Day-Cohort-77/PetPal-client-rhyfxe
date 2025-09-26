@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
-import { updateUserProfile } from '../../services/authService';
+import authService from '../../services/authService';
 import Navbar from '../../components/Navbar';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import FeatureErrorBoundary from '../../components/FeatureErrorBoundary';
@@ -91,7 +91,7 @@ export default function Profile() {
       };
 
       // Call API to update user profile
-      const updatedUser = await updateUserProfile(profileData);
+      const updatedUser = await authService.updateProfile(profileData);
       console.log('Profile updated successfully:', updatedUser);
 
       // Refresh user data in context and update form immediately

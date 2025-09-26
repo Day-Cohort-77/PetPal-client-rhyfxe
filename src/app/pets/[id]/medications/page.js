@@ -5,7 +5,7 @@ import MedicationsList from '@/components/medications/MedicationsList';
 
 export default function PetMedicationsPage() {
   const params = useParams();
-  const petId = parseInt(params.id as string);
+  const petId = parseInt(params.id);
 
   return (
     <div className="container mx-auto px-4 py-8">

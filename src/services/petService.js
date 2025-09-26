@@ -14,6 +14,14 @@ export const getUserPets = async () => {
     return response;
   } catch (error) {
     console.error('getUserPets: API call failed:', error);
+    
+    // For testing mode, provide helpful logging
+    if (error.message?.includes('404')) {
+      console.log('getUserPets: User not found (404) - this is expected for testing with fake user');
+    } else if (error.message?.includes('401')) {
+      console.log('getUserPets: Unauthorized (401) - user may not be properly authenticated');
+    }
+    
     throw error;
   }
 };

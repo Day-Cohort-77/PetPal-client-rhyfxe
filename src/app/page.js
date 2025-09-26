@@ -15,8 +15,18 @@ export default function Home() {
 
   // Redirect authenticated users to dashboard
   useEffect(() => {
-    if (user) {
+    console.log('[Home] Auth state changed:', { 
+      user: user?.email || null, 
+      hasUser: !!user,
+      loading: false // We get this from context but don't use it here
+    });
+    
+    // Only redirect if we have a valid authenticated user
+    if (user && user.id) {
+      console.log('[Home] User authenticated, redirecting to dashboard...');
       router.push('/dashboard');
+    } else {
+      console.log('[Home] No authenticated user, staying on home page');
     }
   }, [user, router]);
 

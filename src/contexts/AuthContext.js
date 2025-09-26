@@ -8,54 +8,122 @@ const AuthContext = createContext(null);
 // Create a provider component
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Load the user on initial render
+  // Add debugging to track user state changes
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        // Try to get the current user directly from the API
-        // The API will use the HttpOnly cookie automatically
-        const userData = await getCurrentUser();
+    console.log('[AuthContext] User state changed:', user?.email || 'null');
+  }, [user]);
 
-        // If we got user data, set the user
-        if (userData && "id" in userData) {
+  // Load the user on initial render to maintain session
+  useEffect(() => {
+    let isActive = true;
+    let hasRun = false; // Prevent multiple executions
+    
+    const loadUser = async () => {
+      // Prevent multiple simultaneous calls
+      if (hasRun) return;
+      hasRun = true;
+      
+      try {
+        console.log('[AuthContext] Loading user from session...');
+        setLoading(true);
+        setError(null);
+        
+        // Try to get the current user from the API
+        const userData = await getCurrentUser();
+        
+        // Only update state if component is still active
+        if (!isActive) return;
+
+        console.log('[AuthContext] User data received:', userData);
+
+        // Check if we got valid user data
+        if (userData && userData.id) {
           setUser(userData);
+          console.log('[AuthContext] User authenticated from session:', userData.email);
         } else {
-          // If no valid user data, ensure user is null
+          console.log('[AuthContext] No valid user data received');
           setUser(null);
         }
       } catch (err) {
-        console.error('Error loading user:', err);
-        setError(err.message);
-        // Ensure user is null on error
-        setUser(null);
+        console.error('[AuthContext] Error loading user:', err);
+        
+        // Only update state if component is still active
+        if (!isActive) return;
+        
+        // Handle different types of errors
+        if (err.isConnectionError) {
+          setError('Unable to connect to the server. Please check your connection.');
+          console.warn('[AuthContext] Connection error - server may be unavailable');
+          setUser(null);
+        } else if (err.message?.includes('401') || err.message?.includes('Unauthorized')) {
+          // User is not logged in - this is normal, don't show as error
+          console.log('[AuthContext] User not authenticated (401)');
+          setError(null);
+          // Only clear user if we don't already have one (don't interfere with fresh logins)
+          setUser(prevUser => {
+            if (prevUser) {
+              console.log('[AuthContext] Keeping existing user despite 401 (may be session timing issue)');
+              return prevUser;
+            }
+            return null;
+          });
+        } else {
+          setError('Failed to load user information');
+          console.error('[AuthContext] Unexpected error:', err);
+          setUser(null);
+        }
       } finally {
-        setLoading(false);
+        if (isActive) {
+          setLoading(false);
+          console.log('[AuthContext] User loading completed');
+        }
       }
     };
 
-    loadUser();
-  }, []);
+    // Small delay to prevent rapid-fire calls
+    const timer = setTimeout(loadUser, 100);
+    
+    return () => {
+      isActive = false;
+      clearTimeout(timer);
+      console.log('[AuthContext] Cleanup completed');
+    };
+  }, []); // Empty dependency array - run only once
 
   // Login function
-  const login = async (userData) => {
-    console.log('Logging in user:', userData);
+  const login = async (email, password) => {
+    console.log('[AuthContext] Attempting login for:', email);
+    setLoading(true);
+    setError(null);
 
-    // Validate user data before setting
-    if (userData && userData.id) {
-      setUser(userData);
-      setError(null);
-    } else if (userData === null) {
-      // Explicit null means clear user (for logout/error cases)
+    try {
+      // Call the authService login method
+      const response = await authService.login(email, password);
+      console.log('[AuthContext] Login response:', response);
+      
+      // authService.login returns { user: userData }
+      const userData = response.user;
+      
+      // Validate user data before setting
+      if (userData && userData.id) {
+        setUser(userData);
+        setError(null);
+        console.log('[AuthContext] Login successful for user:', userData.email);
+        console.log('[AuthContext] User state set, no automatic refresh to avoid interference');
+        return response; // Return the full response for the login page
+      } else {
+        throw new Error('Invalid user data received from server');
+      }
+    } catch (err) {
+      console.error('[AuthContext] Login failed:', err);
       setUser(null);
-      setError(null);
-    } else {
-      // Invalid user data
-      console.error('Invalid user data provided to login:', userData);
-      setUser(null);
-      setError('Invalid user data received');
+      setError(err.message || 'Login failed');
+      throw err; // Re-throw so the login page can handle it
+    } finally {
+      setLoading(false);
     }
   };
 

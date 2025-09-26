@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '../../../../../contexts/AuthContext';
 import { getPetById } from '../../../../../services/petService';
-import { createHealthRecord } from '../../../../../services/healthRecordService';
-import ProtectedRoute from '../../components/ProtectedRoute';
+import { createMedication } from '../../../../../services/medicationService';
+import ProtectedRoute from '../../../../../components/ProtectedRoute';
 import Navbar from '../../../../../components/Navbar';
 import FeatureErrorBoundary from '../../../../../components/FeatureErrorBoundary';
 import { Container, Heading, Text, Flex, Card, TextField, Button, Box, Grid, Select, TextArea, Checkbox } from '@radix-ui/themes';
@@ -36,16 +36,18 @@ export default function AddMedication() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Common dosage units for selection
+  // Common dosage units for selection with examples
   const dosageUnits = [
-    { value: 'mg', label: 'mg (milligram)' },
-    { value: 'ml', label: 'ml (milliliter)' },
-    { value: 'g', label: 'g (gram)' },
-    { value: 'tablet', label: 'tablet' },
-    { value: 'capsule', label: 'capsule' },
-    { value: 'drop', label: 'drop' },
-    { value: 'puff', label: 'puff' },
-    { value: 'unit', label: 'unit' }
+    { value: 'mg', label: 'mg (milligrams) - e.g., 25 mg' },
+    { value: 'ml', label: 'ml (milliliters) - e.g., 5 ml' },
+    { value: 'g', label: 'g (grams) - e.g., 1 g' },
+    { value: 'tablet', label: 'tablet(s) - e.g., 1 tablet' },
+    { value: 'capsule', label: 'capsule(s) - e.g., 2 capsules' },
+    { value: 'drop', label: 'drop(s) - e.g., 3 drops' },
+    { value: 'puff', label: 'puff(s) - e.g., 2 puffs' },
+    { value: 'unit', label: 'unit(s) - e.g., 10 units' },
+    { value: 'cc', label: 'cc (cubic centimeters) - e.g., 2 cc' },
+    { value: 'tsp', label: 'tsp (teaspoons) - e.g., 1 tsp' }
   ];
 
   // Common frequency options
@@ -118,30 +120,128 @@ export default function AddMedication() {
     }));
   };
 
+  // Client-side validation (matching backend required fields exactly)
+  const validateForm = () => {
+    const errors = [];
+    
+    // Required field validation (based on backend API structure)
+    if (!formData.medicationName.trim()) {
+      errors.push('Medication name is required (maps to backend "name" field)');
+    }
+    
+    if (!formData.dosage.trim()) {
+      errors.push('Dosage is required');
+    }
+    
+    if (!formData.frequency.trim()) {
+      errors.push('Frequency is required');
+    }
+    
+    if (!formData.startDate) {
+      errors.push('Start date is required');
+    }
+    
+    if (!formData.instructions.trim()) {
+      errors.push('Instructions are required');
+    }
+    
+    if (!formData.prescribedBy.trim()) {
+      errors.push('Prescriber is required (maps to backend "prescriber" field)');
+    }
+    
+    // Date validation
+    if (formData.startDate && formData.endDate && !formData.isOngoing) {
+      const startDate = new Date(formData.startDate);
+      const endDate = new Date(formData.endDate);
+      if (endDate <= startDate) {
+        errors.push('End date must be after start date');
+      }
+    }
+    
+    return errors;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setIsSaving(true);
 
+    // Client-side validation
+    const validationErrors = validateForm();
+    if (validationErrors.length > 0) {
+      setError(validationErrors.join(', '));
+      setIsSaving(false);
+      return;
+    }
+
     try {
-      // Prepare medication data
+      // Prepare medication data matching exact backend API structure
       const medicationData = {
-        ...formData,
-        petId,
-        recordType: 'MEDICATION',
-        // Convert dates to ISO format
-        startDate: new Date(formData.startDate).toISOString(),
-        endDate: formData.isOngoing ? null : (formData.endDate ? new Date(formData.endDate).toISOString() : null)
+        // Required fields (matching backend expectations exactly)
+        petId: parseInt(petId),                    // integer (required)
+        name: formData.medicationName.trim(),      // string (required) 
+        dosage: formData.dosageUnit ? `${formData.dosage.trim()} ${formData.dosageUnit}` : formData.dosage.trim(), // combine amount and unit
+        frequency: formData.frequency.trim(),      // string (required)
+        startDate: new Date(formData.startDate).toISOString(), // datetime (required)
+        instructions: formData.instructions.trim(), // string (required)
+        prescriber: formData.prescribedBy.trim(),  // string (required)
+        
+        // Optional fields (only include if backend supports them)
+        ...(formData.endDate && !formData.isOngoing && {
+          endDate: new Date(formData.endDate).toISOString()
+        }),
+        ...(formData.reason.trim() && {
+          reason: formData.reason.trim()
+        }),
+        ...(formData.notes.trim() && {
+          notes: formData.notes.trim()
+        })
       };
 
-      // Call API to create health record
-      const newRecord = await createHealthRecord(medicationData);
+      console.log('📋 Medication Data Structure Check:');
+      console.log('Sending to backend:', JSON.stringify(medicationData, null, 2));
+      console.log('\n✅ Required Fields Validation:');
+      console.log('- petId (integer):', medicationData.petId, typeof medicationData.petId === 'number' ? '✅' : '❌');
+      console.log('- name (string):', medicationData.name ? '✅' : '❌');
+      console.log('- dosage (combined):', medicationData.dosage ? '✅' : '❌');
+      console.log('- frequency (string):', medicationData.frequency ? '✅' : '❌');
+      console.log('- startDate (datetime):', medicationData.startDate ? '✅' : '❌');
+      console.log('- instructions (string):', medicationData.instructions ? '✅' : '❌');
+      console.log('- prescriber (string):', medicationData.prescriber ? '✅' : '❌');
 
+      // Call API to create medication
+      const newRecord = await createMedication(medicationData);
+
+      console.log('Medication created successfully:', newRecord);
+      
       // Redirect back to pet details page
       router.push(`/pets/${petId}?tab=medications`);
     } catch (err) {
       console.error('Error adding medication:', err);
-      setError('Failed to add medication. Please try again.');
+      
+      // Enhanced error handling based on HTTP status codes
+      let errorMessage = 'Failed to add medication. Please try again.';
+      
+      if (err.message.includes('401')) {
+        errorMessage = 'Authentication required. Please log in again.';
+      } else if (err.message.includes('403')) {
+        errorMessage = 'Access denied. Only veterinarians and administrators can prescribe medications.';
+      } else if (err.message.includes('400')) {
+        errorMessage = 'Invalid medication data. Please check all required fields.';
+      } else if (err.message.includes('404')) {
+        errorMessage = 'Pet not found. Please try again.';
+      } else if (err.message.includes('500')) {
+        // Check if it's a database constraint error
+        if (err.message.includes('constraint') || err.message.includes('null value')) {
+          errorMessage = 'Database error: Missing required field. Please ensure all required fields are filled.';
+        } else {
+          errorMessage = 'Server error (500). Please try again or contact support if the issue persists.';
+        }
+      } else if (err.message.includes('Network Error') || err.message.includes('fetch')) {
+        errorMessage = 'Unable to connect to backend server. Please ensure the API server is running on http://localhost:5001';
+      }
+      
+      setError(errorMessage);
       setIsSaving(false);
     }
   };
@@ -181,20 +281,20 @@ export default function AddMedication() {
                   <Grid columns="2" gap="4">
                     <Box>
                       <Text as="label" size="2" mb="1" htmlFor="dosage">
-                        Dosage*
+                        Dosage Amount*
                       </Text>
                       <TextField.Root
                         id="dosage"
                         value={formData.dosage}
                         onChange={handleChange}
-                        placeholder="Enter dosage amount"
+                        placeholder="e.g., 25, 1, 2"
                         required
                       />
                     </Box>
 
                     <Box>
                       <Text as="label" size="2" mb="1" htmlFor="dosageUnit">
-                        Unit
+                        Dosage Unit*
                       </Text>
                       <Select.Root
                         value={formData.dosageUnit}
@@ -211,6 +311,15 @@ export default function AddMedication() {
                       </Select.Root>
                     </Box>
                   </Grid>
+
+                  {/* Dosage Preview */}
+                  {formData.dosage && formData.dosageUnit && (
+                    <Box p="2" style={{ backgroundColor: 'var(--blue-2)', borderRadius: '6px' }}>
+                      <Text size="2" color="blue" weight="bold">
+                        Dosage Preview: {formData.dosage} {formData.dosageUnit}
+                      </Text>
+                    </Box>
+                  )}
 
                   <Box>
                     <Text as="label" size="2" mb="1" htmlFor="frequency">

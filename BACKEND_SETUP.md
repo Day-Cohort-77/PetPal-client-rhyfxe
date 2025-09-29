@@ -1,11 +1,11 @@
 # Backend Server Setup Issue
 
 ## Problem
-The frontend is trying to connect to a backend API at `http://localhost:5001` but the server is not running, causing 500 Internal Server Error when trying to create medications.
+The frontend is trying to connect to a backend API at `http://localhost:5000` but the server is not running, causing 500 Internal Server Error when trying to create medications.
 
 ## Current Configuration
 - Frontend: Running on port 3001
-- Expected Backend: Should run on port 5001 (configured in .env.local)
+- Expected Backend: Should run on port 5000 (configured in .env.local)
 - API Endpoints Expected:
   - `POST /medications` - Create new medication
   - `GET /medications/pet/{petId}` - Get medications for a pet
@@ -50,7 +50,7 @@ If there's a separate backend repository:
 1. Clone the backend repository
 2. Install dependencies (`npm install`)
 3. Start the server (`npm start` or `npm run dev`)
-4. Ensure it runs on port 5001
+4. Ensure it runs on port 5000
 
 ### Option 2: Create Mock Backend
 For testing purposes, create a simple Express server:
@@ -69,5 +69,5 @@ Temporarily modify the frontend to handle the missing backend gracefully with mo
 
 ## Immediate Action Needed
 1. Identify if there's a separate backend repository
-2. Start the backend server on port 5001
+2. Start the backend server on port 5000
 3. Or implement one of the solutions above

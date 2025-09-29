@@ -4,7 +4,7 @@ console.log('🧪 Testing medication API for pet ID 1...\n');
 async function testMedicationAPI() {
   try {
     console.log('1. Testing pet medications API...');
-    const response = await fetch('http://localhost:5001/medications/pet/1', {
+    const response = await fetch('http://localhost:5000/medications/pet/1', {
       method: 'GET',
       credentials: 'include',
     });

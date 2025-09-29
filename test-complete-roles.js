@@ -14,7 +14,7 @@ async function testAllUserRoles() {
     try {
       // Login
       console.log('   1. Logging in...');
-      const loginResponse = await fetch('http://localhost:5001/auth/login', {
+      const loginResponse = await fetch('http://localhost:5000/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -30,7 +30,7 @@ async function testAllUserRoles() {
         
         // Get user details
         console.log('   2. Checking user roles...');
-        const meResponse = await fetch('http://localhost:5001/auth/me', {
+        const meResponse = await fetch('http://localhost:5000/auth/me', {
           method: 'GET',
           credentials: 'include',
         });
@@ -52,14 +52,14 @@ async function testAllUserRoles() {
           console.log('   3. Testing medication API access...');
           
           // Test GET (should work for all authenticated users)
-          const getMedsResponse = await fetch('http://localhost:5001/medications/pet/1', {
+          const getMedsResponse = await fetch('http://localhost:5000/medications/pet/1', {
             method: 'GET',
             credentials: 'include',
           });
           console.log('      View Medications (GET):', getMedsResponse.status === 200 ? '✅ ALLOWED' : `❌ DENIED (${getMedsResponse.status})`);
           
           // Test POST (should work only for Admin/Vet)
-          const addMedResponse = await fetch('http://localhost:5001/medications', {
+          const addMedResponse = await fetch('http://localhost:5000/medications', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

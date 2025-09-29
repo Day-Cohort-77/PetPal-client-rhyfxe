@@ -32,7 +32,7 @@ async function testConnection() {
       console.log('\n📋 DIAGNOSIS: Backend server is not running!');
       console.log('\n🔧 SOLUTIONS:');
       console.log('1. Check if there\'s a separate backend repository to clone');
-      console.log('2. Start the backend server on port 5001');
+      console.log('2. Start the backend server on port 5000');
       console.log('3. Update the API URL in .env.local if using different port');
       console.log('\n📖 See BACKEND_SETUP.md for detailed instructions');
       

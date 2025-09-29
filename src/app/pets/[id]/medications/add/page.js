@@ -238,7 +238,7 @@ export default function AddMedication() {
           errorMessage = 'Server error (500). Please try again or contact support if the issue persists.';
         }
       } else if (err.message.includes('Network Error') || err.message.includes('fetch')) {
-        errorMessage = 'Unable to connect to backend server. Please ensure the API server is running on http://localhost:5001';
+        errorMessage = 'Unable to connect to backend server. Please ensure the API server is running on http://localhost:5000';
       }
       
       setError(errorMessage);

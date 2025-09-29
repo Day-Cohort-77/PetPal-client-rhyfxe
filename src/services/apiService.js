@@ -1,5 +1,5 @@
 // Base API configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 // Helper function to get headers for API requests
 const getHeaders = () => {
@@ -82,7 +82,7 @@ export const get = async (endpoint, options = {}) => {
     
     // Check if this is a network error (API server not running)
     if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
-      const serverError = new Error(`Unable to connect to API server at ${API_BASE_URL}. Please ensure the backend server is running on port 5001.`);
+      const serverError = new Error(`Unable to connect to API server at ${API_BASE_URL}. Please ensure the backend server is running on port 5000.`);
       serverError.isConnectionError = true;
       throw serverError;
     }

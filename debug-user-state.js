@@ -6,7 +6,7 @@ async function debugUserState() {
     console.log('1. Testing login flow...');
     
     // Login
-    const loginResponse = await fetch('http://localhost:5001/auth/login', {
+    const loginResponse = await fetch('http://localhost:5000/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -45,7 +45,7 @@ async function debugUserState() {
       
       // Test /auth/me endpoint to verify session
       console.log('\n3. Testing /auth/me endpoint...');
-      const meResponse = await fetch('http://localhost:5001/auth/me', {
+      const meResponse = await fetch('http://localhost:5000/auth/me', {
         method: 'GET',
         credentials: 'include',
       });

@@ -9,7 +9,7 @@
 ## 🔍 Investigation Results
 
 ### Backend Status
-- ✅ **Backend Server:** Running on port 5001
+- ✅ **Backend Server:** Running on port 5000
 - ✅ **API Endpoints:** Available and responding
 - ✅ **Health Check:** Server is operational
 - ❌ **Authentication:** User session not active
@@ -25,7 +25,7 @@
 ### Step 1: User Authentication Required
 **You need to log in to the application first!**
 
-1. Open http://localhost:3001 in your browser
+1. Open http://localhost:3000 in your browser
 2. Navigate to the login page
 3. Log in with valid credentials
 4. Then try adding a medication
@@ -35,10 +35,10 @@ I've enhanced the form with better error messages:
 
 ```javascript
 // Now shows specific error for 500 errors:
-"Server error (500). The backend API server may not be running on port 5001. Please check BACKEND_SETUP.md for instructions."
+"Server error (500). The backend API server may not be running on port 5000. Please check BACKEND_SETUP.md for instructions."
 
 // And for network errors:
-"Unable to connect to backend server. Please ensure the API server is running on http://localhost:5001"
+"Unable to connect to backend server. Please ensure the API server is running on http://localhost:5000"
 ```
 
 ### Step 3: Form Validation (Already Implemented)
@@ -128,8 +128,8 @@ The medication system requires role-based authentication:
 
 ## 🎉 Current Status
 
-- ✅ Frontend: Running on port 3001
-- ✅ Backend: Running on port 5001  
+- ✅ Frontend: Running on port 3000
+- ✅ Backend: Running on port 5000  
 - ✅ Form Validation: Complete
 - ✅ Error Handling: Enhanced
 - ✅ Required Fields: All implemented

@@ -5,7 +5,7 @@ async function testUserRoles() {
   try {
     console.log('1. Testing current user authentication...');
     
-    const response = await fetch('http://localhost:5001/auth/me', {
+    const response = await fetch('http://localhost:5000/auth/me', {
       method: 'GET',
       credentials: 'include',
     });

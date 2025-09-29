@@ -1,12 +1,12 @@
-// Test complete authentication flow with port 5001
-console.log('🔍 Testing complete authentication flow with backend on port 5001...');
+// Test complete authentication flow with port 5000
+console.log('🔍 Testing complete authentication flow with backend on port 5000...');
 
 const testEmail = 'user@petpal.com';
 const testPassword = 'User123!';
 
 // Step 1: Test Login
 console.log('📝 Step 1: Testing login...');
-fetch('http://localhost:5001/auth/login', {
+fetch('http://localhost:5000/auth/login', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -29,7 +29,7 @@ fetch('http://localhost:5001/auth/login', {
   
   // Step 2: Test /auth/me (what AuthContext uses)
   console.log('\n📝 Step 2: Testing /auth/me endpoint...');
-  return fetch('http://localhost:5001/auth/me', {
+  return fetch('http://localhost:5000/auth/me', {
     method: 'GET',
     credentials: 'include',
   });
@@ -48,7 +48,7 @@ fetch('http://localhost:5001/auth/login', {
   
   // Step 3: Test getting user's pets
   console.log('\n📝 Step 3: Testing user pets endpoint...');
-  return fetch('http://localhost:5001/user/pets', {
+  return fetch('http://localhost:5000/user/pets', {
     method: 'GET',
     credentials: 'include',
   });
@@ -70,7 +70,7 @@ fetch('http://localhost:5001/auth/login', {
     const petId = pets[0].id;
     console.log(`\n📝 Step 4: Testing medications for pet ID ${petId}...`);
     
-    return fetch(`http://localhost:5001/pets/${petId}/medications`, {
+    return fetch(`http://localhost:5000/pets/${petId}/medications`, {
       method: 'GET',
       credentials: 'include',
     });
@@ -102,5 +102,5 @@ fetch('http://localhost:5001/auth/login', {
 })
 .catch(error => {
   console.error('\n❌ Test failed:', error);
-  console.log('🔧 Check that backend server is running on port 5001 with proper CORS configuration');
+  console.log('🔧 Check that backend server is running on port 5000 with proper CORS configuration');
 });

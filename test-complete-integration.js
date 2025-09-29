@@ -5,7 +5,7 @@ const testEmail = 'user@petpal.com';
 const testPassword = 'User123!';
 
 // Test complete authentication flow
-fetch('http://localhost:5001/auth/login', {
+fetch('http://localhost:5000/auth/login', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -24,7 +24,7 @@ fetch('http://localhost:5001/auth/login', {
   console.log('✅ Login successful! User:', loginData.email);
   
   // Test protected endpoint that was failing before
-  return fetch('http://localhost:5001/user/pets', {
+  return fetch('http://localhost:5000/user/pets', {
     method: 'GET',
     credentials: 'include',
   });
@@ -46,7 +46,7 @@ fetch('http://localhost:5001/auth/login', {
     const petId = pets[0].id;
     console.log(`✅ Testing medications for pet ID ${petId}...`);
     
-    return fetch(`http://localhost:5001/medications/pet/${petId}`, {
+    return fetch(`http://localhost:5000/medications/pet/${petId}`, {
       method: 'GET', 
       credentials: 'include',
     });

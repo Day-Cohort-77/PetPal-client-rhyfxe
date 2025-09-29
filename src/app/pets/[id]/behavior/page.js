@@ -710,9 +710,10 @@ export default function BehaviorPage() {
                           )}
                           
                           {record.notes && (
-                            <Text size="2">
-                              {record.notes}
-                            </Text>
+                            <Box mt="2">
+                              <Text size="2" weight="bold" mb="1">Notes:</Text>
+                              <Text size="2"> {record.notes}</Text>
+                            </Box>
                           )}
                         </Box>
                         

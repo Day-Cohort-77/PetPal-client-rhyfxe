@@ -2,30 +2,32 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { useAuth } from '../../../../../contexts/AuthContext';
-import { getPetById } from '../../../../../services/petService';
-import { createMedication } from '../../../../../services/medicationService';
-import ProtectedRoute from '../../../../../components/ProtectedRoute';
-import Navbar from '../../../../../components/Navbar';
-import FeatureErrorBoundary from '../../../../../components/FeatureErrorBoundary';
+import { useAuth } from '../../../../../../contexts/AuthContext';
+import { getPetById } from '../../../../../../services/petService';
+import { getMedicationById, updateMedication } from '../../../../../../services/medicationService';
+import ProtectedRoute from '../../../../../../components/ProtectedRoute';
+import Navbar from '../../../../../../components/Navbar';
+import FeatureErrorBoundary from '../../../../../../components/FeatureErrorBoundary';
 import { Container, Heading, Text, Flex, Card, TextField, Button, Box, Grid, Select, TextArea, Checkbox } from '@radix-ui/themes';
 
-export default function AddMedication() {
+export default function EditMedication() {
   const { user, isAdmin, isVeterinarian } = useAuth();
   const router = useRouter();
   const params = useParams();
   const petId = params.id;
+  const medicationId = params.medicationId;
 
   // Check if user has medication management permissions
   const canManageMedications = isAdmin() || isVeterinarian();
 
   const [pet, setPet] = useState(null);
+  const [medication, setMedication] = useState(null);
   const [formData, setFormData] = useState({
     medicationName: '',
     dosage: '',
     dosageUnit: 'mg',
     frequency: '',
-    startDate: new Date().toISOString().split('T')[0],
+    startDate: '',
     endDate: '',
     prescribedBy: '',
     reason: '',
@@ -33,13 +35,14 @@ export default function AddMedication() {
     isOngoing: false,
     reminders: true,
     reminderTimes: ['08:00'],
-    notes: ''
+    notes: '',
+    isActive: true
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Common dosage units for selection with examples
+  // Dosage units and frequency options (same as add page)
   const dosageUnits = [
     { value: 'mg', label: 'mg (milligrams) - e.g., 25 mg' },
     { value: 'ml', label: 'ml (milliliters) - e.g., 5 ml' },
@@ -53,7 +56,6 @@ export default function AddMedication() {
     { value: 'tsp', label: 'tsp (teaspoons) - e.g., 1 tsp' }
   ];
 
-  // Common frequency options
   const frequencyOptions = [
     { value: 'once_daily', label: 'Once daily' },
     { value: 'twice_daily', label: 'Twice daily' },
@@ -68,32 +70,87 @@ export default function AddMedication() {
   // Check permissions first
   useEffect(() => {
     if (user && !canManageMedications) {
-      setError('Access denied. Only veterinarians and administrators can prescribe medications.');
+      setError('Access denied. Only veterinarians and administrators can edit medications.');
       router.push(`/pets/${petId}`);
       return;
     }
   }, [user, canManageMedications, router, petId]);
 
-  // Check if user is authenticated and fetch pet data
+  // Fetch pet and medication data
   useEffect(() => {
-    const fetchPet = async () => {
+    const fetchData = async () => {
       if (!canManageMedications) return; // Don't fetch if no permissions
 
       try {
+        // Fetch pet details
         const petData = await getPetById(petId);
         setPet(petData);
+
+        // Fetch medication details
+        const medicationData = await getMedicationById(medicationId);
+        setMedication(medicationData);
+
+        // Parse dosage to separate amount and unit
+        let dosageAmount = '';
+        let dosageUnit = 'mg';
+        
+        if (medicationData.dosage) {
+          // Try to extract unit from combined dosage string
+          const dosageMatch = medicationData.dosage.match(/^(\d+(?:\.\d+)?)\s*(.+)$/);
+          if (dosageMatch) {
+            dosageAmount = dosageMatch[1];
+            dosageUnit = dosageMatch[2];
+          } else {
+            // If no match, assume it's just the amount
+            dosageAmount = medicationData.dosage;
+          }
+        }
+
+        // Format dates for input fields
+        const startDate = medicationData.startDate ? 
+          new Date(medicationData.startDate).toISOString().split('T')[0] : '';
+        const endDate = medicationData.endDate ? 
+          new Date(medicationData.endDate).toISOString().split('T')[0] : '';
+
+        // Set form data
+        setFormData({
+          medicationName: medicationData.name || '',
+          dosage: dosageAmount,
+          dosageUnit: dosageUnit,
+          frequency: medicationData.frequency || '',
+          startDate: startDate,
+          endDate: endDate,
+          prescribedBy: medicationData.prescriber || '',
+          reason: '', // This might not be in the response
+          instructions: medicationData.instructions || '',
+          isOngoing: !medicationData.endDate,
+          reminders: true,
+          reminderTimes: ['08:00'],
+          notes: '', // This might not be in the response
+          isActive: medicationData.isActive !== undefined ? medicationData.isActive : true
+        });
       } catch (err) {
-        console.error('Error fetching pet details:', err);
-        setError('Failed to load pet details. Please try again.');
+        console.error('Error fetching data:', err);
+        let errorMessage = 'Failed to load medication details. Please try again.';
+        
+        if (err.message.includes('401')) {
+          errorMessage = 'Authentication required. Please log in again.';
+        } else if (err.message.includes('403')) {
+          errorMessage = 'Access denied. You can only edit medications for your own pets.';
+        } else if (err.message.includes('404')) {
+          errorMessage = 'Medication not found.';
+        }
+        
+        setError(errorMessage);
       } finally {
         setIsLoading(false);
       }
     };
 
-    if (petId && user) {
-      fetchPet();
+    if (petId && medicationId && user) {
+      fetchData();
     }
-  }, [user, router, petId, canManageMedications]);
+  }, [petId, medicationId, user, canManageMedications]);
 
   const handleChange = (e) => {
     const { id, value, type, checked } = e.target;
@@ -140,7 +197,7 @@ export default function AddMedication() {
     
     // Required field validation (based on backend API structure)
     if (!formData.medicationName.trim()) {
-      errors.push('Medication name is required (maps to backend "name" field)');
+      errors.push('Medication name is required');
     }
     
     if (!formData.dosage.trim()) {
@@ -160,7 +217,7 @@ export default function AddMedication() {
     }
     
     if (!formData.prescribedBy.trim()) {
-      errors.push('Prescriber is required (maps to backend "prescriber" field)');
+      errors.push('Prescriber is required');
     }
     
     // Date validation
@@ -189,70 +246,44 @@ export default function AddMedication() {
     }
 
     try {
-      // Prepare medication data matching exact backend API structure
-      const medicationData = {
-        // Required fields (matching backend expectations exactly)
-        petId: parseInt(petId),                    // integer (required)
-        name: formData.medicationName.trim(),      // string (required) 
-        dosage: formData.dosageUnit ? `${formData.dosage.trim()} ${formData.dosageUnit}` : formData.dosage.trim(), // combine amount and unit
-        frequency: formData.frequency.trim(),      // string (required)
-        startDate: new Date(formData.startDate).toISOString(), // datetime (required)
-        instructions: formData.instructions.trim(), // string (required)
-        prescriber: formData.prescribedBy.trim(),  // string (required)
-        
-        // Optional fields (only include if backend supports them)
-        ...(formData.endDate && !formData.isOngoing && {
-          endDate: new Date(formData.endDate).toISOString()
-        }),
-        ...(formData.reason.trim() && {
-          reason: formData.reason.trim()
-        }),
-        ...(formData.notes.trim() && {
-          notes: formData.notes.trim()
-        })
+      // Prepare update data matching exact backend API structure
+      const updateData = {
+        name: formData.medicationName.trim(),
+        dosage: formData.dosageUnit ? 
+          `${formData.dosage.trim()} ${formData.dosageUnit}` : 
+          formData.dosage.trim(),
+        frequency: formData.frequency,
+        startDate: new Date(formData.startDate).toISOString(),
+        endDate: formData.endDate && !formData.isOngoing ? 
+          new Date(formData.endDate).toISOString() : null,
+        instructions: formData.instructions.trim(),
+        prescriber: formData.prescribedBy.trim(),
+        isActive: formData.isActive
       };
 
-      console.log('📋 Medication Data Structure Check:');
-      console.log('Sending to backend:', JSON.stringify(medicationData, null, 2));
-      console.log('\n✅ Required Fields Validation:');
-      console.log('- petId (integer):', medicationData.petId, typeof medicationData.petId === 'number' ? '✅' : '❌');
-      console.log('- name (string):', medicationData.name ? '✅' : '❌');
-      console.log('- dosage (combined):', medicationData.dosage ? '✅' : '❌');
-      console.log('- frequency (string):', medicationData.frequency ? '✅' : '❌');
-      console.log('- startDate (datetime):', medicationData.startDate ? '✅' : '❌');
-      console.log('- instructions (string):', medicationData.instructions ? '✅' : '❌');
-      console.log('- prescriber (string):', medicationData.prescriber ? '✅' : '❌');
+      console.log('📋 Medication Update Data:');
+      console.log('Sending to backend:', JSON.stringify(updateData, null, 2));
 
-      // Call API to create medication
-      const newRecord = await createMedication(medicationData);
+      // Call API to update medication
+      const updatedRecord = await updateMedication(medicationId, updateData);
 
-      console.log('Medication created successfully:', newRecord);
+      console.log('Medication updated successfully:', updatedRecord);
       
-      // Redirect back to pet details page
+      // Redirect back to pet details page with medications tab
       router.push(`/pets/${petId}?tab=medications`);
     } catch (err) {
-      console.error('Error adding medication:', err);
+      console.error('Error updating medication:', err);
       
-      // Enhanced error handling based on HTTP status codes
-      let errorMessage = 'Failed to add medication. Please try again.';
+      let errorMessage = 'Failed to update medication. Please try again.';
       
       if (err.message.includes('401')) {
         errorMessage = 'Authentication required. Please log in again.';
       } else if (err.message.includes('403')) {
-        errorMessage = 'Access denied. Only veterinarians and administrators can prescribe medications.';
+        errorMessage = 'Access denied. Only veterinarians and administrators can modify medications.';
+      } else if (err.message.includes('404')) {
+        errorMessage = 'Medication not found.';
       } else if (err.message.includes('400')) {
         errorMessage = 'Invalid medication data. Please check all required fields.';
-      } else if (err.message.includes('404')) {
-        errorMessage = 'Pet not found. Please try again.';
-      } else if (err.message.includes('500')) {
-        // Check if it's a database constraint error
-        if (err.message.includes('constraint') || err.message.includes('null value')) {
-          errorMessage = 'Database error: Missing required field. Please ensure all required fields are filled.';
-        } else {
-          errorMessage = 'Server error (500). Please try again or contact support if the issue persists.';
-        }
-      } else if (err.message.includes('Network Error') || err.message.includes('fetch')) {
-        errorMessage = 'Unable to connect to backend server. Please ensure the API server is running on http://localhost:5000';
       }
       
       setError(errorMessage);
@@ -265,13 +296,15 @@ export default function AddMedication() {
     return null;
   }
 
-  const addMedicationContent = (
+  const editMedicationContent = (
     <>
       <Navbar />
       <Container size="2" py="9">
         <Card>
           <Flex direction="column" gap="5" p="4">
-            <Heading size="6" align="center">Add Medication for {pet?.name || 'Pet'}</Heading>
+            <Heading size="6" align="center">
+              Edit Medication for {pet?.name || 'Pet'}
+            </Heading>
 
             {error && (
               <Text color="red" size="2">
@@ -280,7 +313,7 @@ export default function AddMedication() {
             )}
 
             {isLoading ? (
-              <Text>Loading pet details...</Text>
+              <Text>Loading medication details...</Text>
             ) : (
               <form onSubmit={handleSubmit}>
                 <Flex direction="column" gap="4">
@@ -420,13 +453,14 @@ export default function AddMedication() {
 
                   <Box>
                     <Text as="label" size="2" mb="1" htmlFor="prescribedBy">
-                      Prescribed By
+                      Prescribed By*
                     </Text>
                     <TextField.Root
                       id="prescribedBy"
                       value={formData.prescribedBy}
                       onChange={handleChange}
                       placeholder="Enter name of prescriber"
+                      required
                     />
                   </Box>
 
@@ -444,14 +478,29 @@ export default function AddMedication() {
 
                   <Box>
                     <Text as="label" size="2" mb="1" htmlFor="instructions">
-                      Administration Instructions
+                      Administration Instructions*
                     </Text>
                     <TextArea
                       id="instructions"
                       value={formData.instructions}
                       onChange={handleChange}
                       placeholder="Enter instructions for administering medication"
+                      required
                     />
+                  </Box>
+
+                  <Box>
+                    <Flex align="center" gap="2">
+                      <input
+                        type="checkbox"
+                        id="isActive"
+                        checked={formData.isActive}
+                        onChange={handleChange}
+                      />
+                      <Text as="label" size="2" htmlFor="isActive">
+                        Medication is Active
+                      </Text>
+                    </Flex>
                   </Box>
 
                   <Box>
@@ -517,12 +566,12 @@ export default function AddMedication() {
 
                   <Flex gap="3" mt="4">
                     <Button type="submit" disabled={isSaving}>
-                      {isSaving ? 'Saving...' : 'Save Medication'}
+                      {isSaving ? 'Updating...' : 'Update Medication'}
                     </Button>
                     <Button
                       type="button"
                       variant="soft"
-                      onClick={() => router.push(`/pets/${petId}`)}
+                      onClick={() => router.push(`/pets/${petId}?tab=medications`)}
                     >
                       Cancel
                     </Button>
@@ -538,8 +587,8 @@ export default function AddMedication() {
 
   return (
     <ProtectedRoute>
-      <FeatureErrorBoundary featureName="AddMedication">
-        {addMedicationContent}
+      <FeatureErrorBoundary featureName="EditMedication">
+        {editMedicationContent}
       </FeatureErrorBoundary>
     </ProtectedRoute>
   );

@@ -9,6 +9,7 @@ import { getMedicationsForPet } from '../../../services/medicationService';
 import Navbar from '../../../components/Navbar';
 import FeatureErrorBoundary from '../../../components/FeatureErrorBoundary';
 import ProtectedRoute from '../../../components/ProtectedRoute';
+
 import { Container, Grid, Badge, Heading, Text, Flex, Card, Button, Box, Tabs, Avatar, Dialog, IconButton } from '@radix-ui/themes';
 import { FiEdit2, FiTrash2, FiCalendar } from 'react-icons/fi';
 const Behavior = dynamic(() => import('./behavior/page'), { ssr: false });

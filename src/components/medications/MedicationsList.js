@@ -1,10 +1,16 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '../../contexts/AuthContext';
 import { usePetMedications } from '../../hooks/usePetMedications';
 import { format } from 'date-fns';
 
 const MedicationsList = ({ petId }) => {
+  const router = useRouter();
+  const { isAdmin, isVeterinarian } = useAuth();
+  const canManageMedications = isAdmin() || isVeterinarian();
+
   const [filters, setFilters] = useState({
     sortBy: 'StartDate',
     sortOrder: 'desc',
@@ -116,6 +122,9 @@ const MedicationsList = ({ petId }) => {
                 End Date {filters.sortBy === 'enddate' && (filters.sortOrder === 'asc' ? '↑' : '↓')}
               </th>
               <th className="px-6 py-3 text-left">Status</th>
+              {canManageMedications && (
+                <th className="px-6 py-3 text-left">Actions</th>
+              )}
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -141,6 +150,16 @@ const MedicationsList = ({ petId }) => {
                     {medication.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </td>
+                {canManageMedications && (
+                  <td className="px-6 py-4">
+                    <button
+                      onClick={() => router.push(`/pets/${petId}/medications/${medication.id}/edit`)}
+                      className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      Edit
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

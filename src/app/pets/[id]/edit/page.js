@@ -4,7 +4,11 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { getPetById, updatePet } from '../../../../services/petService';
+<<<<<<< HEAD
 import { uploadPetImage, getImageUrl } from '../../../../services/fileUploadService'; // Add getImageUrl import
+=======
+import { uploadPetImage } from '../../../../services/fileUploadService';
+>>>>>>> 196aa41 (Same reasons)
 import Navbar from '../../../../components/Navbar';
 import ProtectedRoute from '../../../../components/ProtectedRoute';
 import FeatureErrorBoundary from '../../../../components/FeatureErrorBoundary';

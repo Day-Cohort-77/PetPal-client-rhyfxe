@@ -4,6 +4,7 @@ import { Theme } from '@radix-ui/themes';
 import '@radix-ui/themes/styles.css';
 import { AuthProvider } from '../contexts/AuthContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
+import { QueryProvider } from '../providers/QueryProvider';
 import DynamicThemeWrapper from '../components/DynamicThemeWrapper';
 import AuthThemeBridge from '../components/AuthThemeBridge';
 

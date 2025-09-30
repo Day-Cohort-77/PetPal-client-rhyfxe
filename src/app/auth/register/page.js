@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { register } from '../../../services/authService';
 import { useAuth } from '../../../contexts/AuthContext';
 import Link from 'next/link';
 import Navbar from '../../../components/Navbar';
@@ -28,7 +27,7 @@ export default function Register() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { login } = useAuth();
+  const { register: authRegister } = useAuth();
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -72,8 +71,11 @@ export default function Register() {
     try {
       // Remove confirmPassword before sending to API
       const { confirmPassword, ...registrationData } = formData;
-      const userData = await register(registrationData);
-      login(userData);
+      console.log('Attempting registration via AuthContext:', registrationData.email);
+      const response = await authRegister(registrationData);
+      console.log('Registration successful:', response);
+      
+      // AuthContext register should handle the user state automatically
       router.push('/pets');
     } catch (err) {
       console.error('Registration error:', err);

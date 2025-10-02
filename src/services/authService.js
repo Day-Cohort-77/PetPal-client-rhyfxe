@@ -1,50 +1,174 @@
-import { get, post, put } from './apiService';
+import apiService from './apiService';
 
-// Register a new user
-export const register = async (userData) => {
-  return post('/auth/register', userData);
-};
-
-// Login a user
-export const login = async (credentials) => {
-  return post('/auth/login', credentials);
-};
-
-// Logout the current user
-export const logout = async () => {
-  return post('/auth/logout');
-};
-
-// Get the current user's profile
-export const getCurrentUser = async () => {
-  try {
-    return await get('/auth/me');
-  } catch (error) {
-    // If there's an error (like 401 Unauthorized), return null
-    // Only log non-401 errors to avoid console spam for expected auth failures
-    if (!error.message.includes('401')) {
-      console.error('Error getting current user:', error);
+class AuthService {
+  // User login
+  async login(email, password) {
+    console.log('[AuthService] Attempting login for:', email);
+    
+    try {
+      const response = await apiService.post('/auth/login', {
+        email,
+        password,
+      });
+      
+      console.log('[AuthService] Login response:', response);
+      
+      if (response) {
+        // Store user data (API uses cookies for authentication)
+        localStorage.setItem('user', JSON.stringify(response));
+        console.log('[AuthService] Login successful, user stored');
+        return { user: response }; // Wrap in object for consistency
+      } else {
+        throw new Error('Invalid response from server');
+      }
+    } catch (error) {
+      console.error('[AuthService] Login failed:', error);
+      throw error;
     }
-    return null;
   }
-};
 
-// Update the current user's profile
-export const updateUserProfile = async (profileData) => {
-  try {
-    return await put('/auth/profile', profileData);
-  } catch (error) {
-    console.error('Error updating user profile:', error);
-    throw error; // Re-throw to handle in components
+  // User registration
+  async register(userData) {
+    console.log('[AuthService] Attempting registration for:', userData.email);
+    
+    try {
+      const response = await apiService.post('/auth/register', userData);
+      
+      console.log('[AuthService] Registration response:', response);
+      
+      if (response) {
+        // Store user data (API uses cookies for authentication)
+        localStorage.setItem('user', JSON.stringify(response));
+        console.log('[AuthService] Registration successful, user stored');
+        return { user: response }; // Wrap in object for consistency
+      } else {
+        throw new Error('Invalid response from server');
+      }
+    } catch (error) {
+      console.error('[AuthService] Registration failed:', error);
+      throw error;
+    }
   }
-};
 
-const authService = {
-  register,
-  login,
-  logout,
-  getCurrentUser,
-  updateUserProfile,
-};
+  // Get current user profile
+  async getCurrentUser() {
+    console.log('[AuthService] Fetching current user profile');
+    
+    try {
+      const response = await apiService.get('/auth/me');
+      console.log('[AuthService] Current user response:', response);
+      
+      if (response) {
+        // Update stored user data
+        localStorage.setItem('user', JSON.stringify(response));
+        console.log('[AuthService] Updated stored user data');
+        return response;
+      }
+      return null;
+    } catch (error) {
+      console.error('[AuthService] Failed to fetch current user:', error);
+      
+      // If we get a 401, the session is invalid
+      // TEMPORARILY DISABLED: Don't auto-logout on 401 to prevent login interference
+      if (error.message.includes('401')) {
+        const currentPath = window.location.pathname;
+        if (!currentPath.startsWith('/auth/')) {
+          console.log('[AuthService] 401 detected, but NOT auto-redirecting to prevent login interference');
+          // this.logout(); // DISABLED
+        } else {
+          console.log('[AuthService] 401 detected but already on auth page, not redirecting');
+          // Just clear local storage without redirect
+          localStorage.removeItem('user');
+        }
+      }
+      
+      throw error;
+    }
+  }
+
+  // Update user profile
+  async updateProfile(userData) {
+    console.log('[AuthService] Updating user profile:', userData);
+    
+    try {
+      const response = await apiService.put('/auth/profile', userData);
+      console.log('[AuthService] Profile update response:', response);
+      
+      if (response) {
+        // Update stored user data
+        localStorage.setItem('user', JSON.stringify(response));
+        console.log('[AuthService] Updated stored user data after profile update');
+        return response;
+      }
+      return null;
+    } catch (error) {
+      console.error('[AuthService] Profile update failed:', error);
+      throw error;
+    }
+  }
+
+  // User logout
+  logout() {
+    console.log('[AuthService] Logging out user');
+    
+    // Try to call logout API endpoint
+    try {
+      apiService.post('/auth/logout');
+    } catch (error) {
+      console.log('[AuthService] Logout API call failed, continuing with local cleanup');
+    }
+    
+    // Clear stored user data
+    localStorage.removeItem('user');
+    
+    console.log('[AuthService] Cleared stored user data');
+    
+    // Only redirect to login page if we're not already on an auth page
+    const currentPath = window.location.pathname;
+    if (!currentPath.startsWith('/auth/')) {
+      console.log('[AuthService] Redirecting to login page');
+      window.location.href = '/auth/login';
+    } else {
+      console.log('[AuthService] Already on auth page, not redirecting');
+    }
+  }
+
+  // Check if user is authenticated
+  isAuthenticated() {
+    const user = this.getUser();
+    const hasUser = !!user;
+    console.log('[AuthService] Is authenticated:', hasUser);
+    return hasUser;
+  }
+
+  // Get stored user data
+  getUser() {
+    try {
+      const userJson = localStorage.getItem('user');
+      if (userJson) {
+        const user = JSON.parse(userJson);
+        console.log('[AuthService] Retrieved stored user:', user);
+        return user;
+      }
+      console.log('[AuthService] No stored user found');
+      return null;
+    } catch (error) {
+      console.error('[AuthService] Error parsing stored user:', error);
+      return null;
+    }
+  }
+}
+
+// Create and export a singleton instance
+const authService = new AuthService();
+
+// Export individual methods for backward compatibility
+export const login = (email, password) => authService.login(email, password);
+export const register = (userData) => authService.register(userData);
+export const getCurrentUser = () => authService.getCurrentUser();
+export const logout = () => authService.logout();
+export const updateProfile = (userData) => authService.updateProfile(userData);
+export const isAuthenticated = () => authService.isAuthenticated();
+export const getUser = () => authService.getUser();
 
 export default authService;

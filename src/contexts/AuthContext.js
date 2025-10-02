@@ -1,127 +1,84 @@
+// src/contexts/AuthContext.js - UNIFIED PRODUCTION VERSION
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import authService, { getCurrentUser } from '../services/authService';
+import * as AuthService from '../services/authService';
 
 const AuthContext = createContext(null);
 
-// Create a provider component
+/**
+ * AuthProvider - Provides authentication state and methods to the entire app
+ * 
+ * Features:
+ * - Automatic session restoration on page load
+ * - Role-based access control (Admin, Veterinarian, Pet Owner)
+ * - Secure login/logout with backend integration
+ * - User profile management
+ * - Error handling and loading states
+ */
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Add debugging to track user state changes
+  // Initialize authentication state on mount
   useEffect(() => {
-    console.log('[AuthContext] User state changed:', user?.email || 'null');
-  }, [user]);
-
-  // Load the user on initial render to maintain session
-  useEffect(() => {
-    let isActive = true;
-    let hasRun = false; // Prevent multiple executions
-    
-    const loadUser = async () => {
-      // Prevent multiple simultaneous calls
-      if (hasRun) return;
-      hasRun = true;
+    const initializeAuth = async () => {
+      console.log('[AuthContext] Initializing authentication state...');
+      setLoading(true);
       
       try {
-        console.log('[AuthContext] Loading user from session...');
-        setLoading(true);
+        const currentUser = await AuthService.getCurrentUser();
+        console.log('[AuthContext] Current user retrieved:', currentUser);
+        setUser(currentUser);
         setError(null);
-        
-        // Try to get the current user from the API
-        const userData = await getCurrentUser();
-        
-        // Only update state if component is still active
-        if (!isActive) return;
-
-        console.log('[AuthContext] User data received:', userData);
-
-        // Check if we got valid user data
-        if (userData && userData.id) {
-          setUser(userData);
-          console.log('[AuthContext] User authenticated from session:', userData.email);
-        } else {
-          console.log('[AuthContext] No valid user data received');
-          setUser(null);
-        }
       } catch (err) {
-        console.error('[AuthContext] Error loading user:', err);
-        
-        // Only update state if component is still active
-        if (!isActive) return;
-        
-        // Handle different types of errors
-        if (err.isConnectionError) {
-          setError('Unable to connect to the server. Please check your connection.');
-          console.warn('[AuthContext] Connection error - server may be unavailable');
+        console.log('[AuthContext] No authenticated user found:', err.message);
+        // 401 errors are expected when not logged in - don't set as error
+        if (err.status === 401 || err.isAuthError || err.message.includes('not authenticated')) {
+          console.log('[AuthContext] User not authenticated (this is normal for initial page load)');
           setUser(null);
-        } else if (err.message?.includes('401') || err.message?.includes('Unauthorized')) {
-          // User is not logged in - this is normal, don't show as error
-          console.log('[AuthContext] User not authenticated (401)');
-          setError(null);
-          // Only clear user if we don't already have one (don't interfere with fresh logins)
-          setUser(prevUser => {
-            if (prevUser) {
-              console.log('[AuthContext] Keeping existing user despite 401 (may be session timing issue)');
-              return prevUser;
-            }
-            return null;
-          });
+          setError(null); // Clear any previous errors
         } else {
-          setError('Failed to load user information');
-          console.error('[AuthContext] Unexpected error:', err);
+          // Only set error for actual errors (network issues, etc.)
+          console.error('[AuthContext] Authentication initialization error:', err);
+          setError(err.message);
           setUser(null);
         }
       } finally {
-        if (isActive) {
-          setLoading(false);
-          console.log('[AuthContext] User loading completed');
-        }
+        setLoading(false);
+        setIsInitialized(true);
+        console.log('[AuthContext] Authentication initialization complete');
       }
     };
 
-    // Small delay to prevent rapid-fire calls
-    const timer = setTimeout(loadUser, 100);
-    
-    return () => {
-      isActive = false;
-      clearTimeout(timer);
-      console.log('[AuthContext] Cleanup completed');
-    };
-  }, []); // Empty dependency array - run only once
+    initializeAuth();
+  }, []);
 
   // Login function
   const login = async (email, password) => {
-    console.log('[AuthContext] Attempting login for:', email);
+    console.log('[AuthContext] Login attempt for:', email);
     setLoading(true);
     setError(null);
-
+    
     try {
-      // Call the authService login method
-      const response = await authService.login(email, password);
-      console.log('[AuthContext] Login response:', response);
+      const response = await AuthService.login(email, password);
+      console.log('[AuthContext] Login successful:', response);
       
-      // authService.login returns { user: userData }
-      const userData = response.user;
+      // Fetch the full user profile after successful login
+      const currentUser = await AuthService.getCurrentUser();
+      console.log('[AuthContext] User profile retrieved:', currentUser);
       
-      // Validate user data before setting
-      if (userData && userData.id) {
-        setUser(userData);
-        setError(null);
-        console.log('[AuthContext] Login successful for user:', userData.email);
-        console.log('[AuthContext] User state set, no automatic refresh to avoid interference');
-        return response; // Return the full response for the login page
-      } else {
-        throw new Error('Invalid user data received from server');
-      }
+      setUser(currentUser);
+      setError(null);
+      return { user: currentUser };
     } catch (err) {
-      console.error('[AuthContext] Login failed:', err);
+      console.error('[AuthContext] Login error:', err);
+      const errorMessage = err.message || 'Failed to login';
+      setError(errorMessage);
       setUser(null);
-      setError(err.message || 'Login failed');
-      throw err; // Re-throw so the login page can handle it
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -129,57 +86,69 @@ export const AuthProvider = ({ children }) => {
 
   // Logout function
   const logout = async () => {
+    console.log('[AuthContext] Logout initiated');
+    setLoading(true);
+    
     try {
-      console.log('Logging out user');
-      // Call the API logout endpoint to clear server-side session/cookie
-      const { logout: apiLogout } = await import('../services/authService');
-      await apiLogout();
-    } catch (err) {
-      console.error('Error during API logout:', err);
-      // Continue with local logout even if API call fails
-    } finally {
-      // Always clear local user state regardless of API call success
+      await AuthService.logout();
+      console.log('[AuthContext] Logout successful');
       setUser(null);
       setError(null);
+    } catch (err) {
+      console.error('[AuthContext] Logout error:', err);
+      // Even if logout fails, clear local state
+      setUser(null);
+      setError(null);
+    } finally {
+      setLoading(false);
     }
   };
 
   // Update user function (for profile updates)
-  const updateUser = async () => {
+  const updateUser = async (userData) => {
+    console.log('[AuthContext] Updating user:', userData);
+    setLoading(true);
+    setError(null);
+    
     try {
-      const userData = await getCurrentUser();
-      if (userData && "id" in userData) {
-        setUser(userData);
-        return userData;
-      } else {
-        // If no valid user data, clear the user
-        setUser(null);
-        return null;
-      }
+      const updatedUser = await AuthService.updateProfile(userData);
+      console.log('[AuthContext] User updated successfully:', updatedUser);
+      setUser(updatedUser);
+      setError(null);
+      return updatedUser;
     } catch (err) {
-      console.error('Error updating user:', err);
-      // Clear user on error
-      setUser(null);
-      throw err;
+      console.error('[AuthContext] Update user error:', err);
+      const errorMessage = err.message || 'Failed to update user';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Force refresh auth state (useful for checking if session is still valid)
+  // Force refresh auth state
   const refreshAuth = async () => {
+    console.log('[AuthContext] Refreshing authentication state');
     setLoading(true);
+    
     try {
-      const userData = await getCurrentUser();
-      if (userData && "id" in userData) {
-        setUser(userData);
-        return userData;
-      } else {
-        setUser(null);
-        return null;
-      }
+      const currentUser = await AuthService.getCurrentUser();
+      console.log('[AuthContext] Auth refreshed:', currentUser);
+      setUser(currentUser);
+      setError(null);
+      return currentUser;
     } catch (err) {
-      console.error('Error refreshing auth:', err);
-      setUser(null);
-      setError(err.message);
+      console.log('[AuthContext] Refresh failed - user not authenticated:', err.message);
+      // 401 errors during refresh mean user session expired - this is expected
+      if (err.status === 401 || err.message.includes('Unauthorized')) {
+        console.log('[AuthContext] Session expired, clearing user');
+        setUser(null);
+        setError(null);
+      } else {
+        console.error('[AuthContext] Refresh error:', err);
+        setError(err.message);
+        setUser(null);
+      }
       return null;
     } finally {
       setLoading(false);
@@ -188,21 +157,60 @@ export const AuthProvider = ({ children }) => {
 
   // Check if the user has a specific role
   const hasRole = (role) => {
-    if (!user || !user.roles) return false;
-    return user.roles.includes(role);
+    if (!user || !user.roles) {
+      console.log('[AuthContext] hasRole: No user or roles available');
+      return false;
+    }
+    
+    const hasRoleResult = user.roles.includes(role);
+    console.log(`[AuthContext] hasRole(${role}):`, hasRoleResult);
+    return hasRoleResult;
   };
 
   // Check if the user is an admin
-  const isAdmin = () => hasRole('Admin');
+  const isAdmin = () => {
+    const result = hasRole('Admin');
+    console.log('[AuthContext] isAdmin:', result);
+    return result;
+  };
 
   // Check if the user is a veterinarian
-  const isVeterinarian = () => hasRole('Veterinarian');
+  const isVeterinarian = () => {
+    const result = hasRole('Veterinarian');
+    console.log('[AuthContext] isVeterinarian:', result);
+    return result;
+  };
 
-  // The value that will be provided to consumers of this context
-  const value = {
+  // Check if the user is a pet owner
+  const isPetOwner = () => {
+    const result = hasRole('PetOwner');
+    console.log('[AuthContext] isPetOwner:', result);
+    return result;
+  };
+
+  // Check if user can edit a specific pet
+  const canEditPet = (petOwnerId) => {
+    if (!user) return false;
+    
+    // Admins can edit any pet
+    if (isAdmin()) return true;
+    
+    // Pet owners can edit their own pets
+    if (user.id === petOwnerId) return true;
+    
+    return false;
+  };
+
+  // Check if user can manage medications (Admins and Veterinarians only)
+  const canManageMedications = () => {
+    return isAdmin() || isVeterinarian();
+  };
+
+  const contextValue = {
     user,
     loading,
     error,
+    isInitialized,
     login,
     logout,
     updateUser,
@@ -210,12 +218,19 @@ export const AuthProvider = ({ children }) => {
     hasRole,
     isAdmin,
     isVeterinarian,
+    isPetOwner,
+    canEditPet,
+    canManageMedications,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={contextValue}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
-// Custom hook to use the auth context
+// Hook to use auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -223,3 +238,5 @@ export const useAuth = () => {
   }
   return context;
 };
+
+export default AuthContext;

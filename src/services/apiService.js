@@ -20,17 +20,11 @@ const handleResponse = async (response) => {
   if (!response.ok) {
     // If the response is 401 Unauthorized, handle it gracefully
     if (response.status === 401) {
-      console.log('[ApiService] 401 Unauthorized - NOT redirecting to prevent login interference');
-      // DISABLED: Don't auto-redirect on 401 to prevent login issues
-      // if (typeof window !== 'undefined') {
-      //   localStorage.removeItem('user');
-      //   if (!window.location.pathname.includes('/auth/login')) {
-      //     window.location.href = '/auth/login';
-      //   }
-      // }
-      // Instead, throw an error that can be handled by the calling code
-      const error = new Error('Unauthorized');
+      console.log('[ApiService] 401 Unauthorized - User not authenticated (this is normal for initial page load)');
+      // Create a more descriptive error for 401s
+      const error = new Error('User not authenticated');
       error.status = 401;
+      error.isAuthError = true;
       throw error;
     }
 

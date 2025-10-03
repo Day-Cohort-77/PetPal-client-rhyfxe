@@ -33,6 +33,15 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# security - cookies and auth tokens
+*cookies*.txt
+*.cookie
+*_cookies.txt
+
+# debugging artifacts
+debug-*.js
+test-*.js
+
 # vercel
 .vercel
 

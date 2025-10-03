@@ -54,17 +54,42 @@ export default function Register() {
     e.preventDefault();
     setError('');
 
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+
+    // Validate password strength
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return;
+    }
+
+
     // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
     }
 
+
     // Validate preferred contact method is selected
     if (!formData.preferredContactMethod) {
       setError('Please select a preferred contact method');
       return;
     }
+
+
+    // Validate required address fields
+    if (!formData.address.street || !formData.address.city || !formData.address.state || !formData.address.zipCode) {
+      setError('Please fill in all address fields');
+      return;
+    }
+
 
     setIsLoading(true);
 
@@ -74,7 +99,7 @@ export default function Register() {
       console.log('Attempting registration via AuthContext:', registrationData.email);
       const response = await authRegister(registrationData);
       console.log('Registration successful:', response);
-      
+
       // AuthContext register should handle the user state automatically
       router.push('/pets');
     } catch (err) {

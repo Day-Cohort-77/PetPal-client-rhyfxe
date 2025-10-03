@@ -68,16 +68,11 @@ class AuthService {
     } catch (error) {
       console.error('[AuthService] Failed to fetch current user:', error);
       
-      // If we get a 401, the session is invalid
-      // TEMPORARILY DISABLED: Don't auto-logout on 401 to prevent login interference
-      if (error.message.includes('401')) {
-        const currentPath = window.location.pathname;
-        if (!currentPath.startsWith('/auth/')) {
-          console.log('[AuthService] 401 detected, but NOT auto-redirecting to prevent login interference');
-          // this.logout(); // DISABLED
-        } else {
-          console.log('[AuthService] 401 detected but already on auth page, not redirecting');
-          // Just clear local storage without redirect
+      // If we get a 401, the session is invalid or user is not logged in
+      if (error.status === 401 || error.isAuthError) {
+        console.log('[AuthService] User not authenticated - clearing local storage');
+        // Clear local storage but don't redirect automatically
+        if (typeof window !== 'undefined') {
           localStorage.removeItem('user');
         }
       }

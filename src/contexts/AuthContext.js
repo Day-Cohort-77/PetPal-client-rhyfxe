@@ -27,7 +27,7 @@ export const AuthProvider = ({ children }) => {
     const initializeAuth = async () => {
       console.log('[AuthContext] Initializing authentication state...');
       setLoading(true);
-      
+
       try {
         const currentUser = await AuthService.getCurrentUser();
         console.log('[AuthContext] Current user retrieved:', currentUser);
@@ -61,15 +61,15 @@ export const AuthProvider = ({ children }) => {
     console.log('[AuthContext] Login attempt for:', email);
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await AuthService.login(email, password);
       console.log('[AuthContext] Login successful:', response);
-      
+
       // Fetch the full user profile after successful login
       const currentUser = await AuthService.getCurrentUser();
       console.log('[AuthContext] User profile retrieved:', currentUser);
-      
+
       setUser(currentUser);
       setError(null);
       return { user: currentUser };
@@ -84,11 +84,39 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Register function
+  const register = async (userData) => {
+    console.log('[AuthContext] Registration attempt for:', userData.email);
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await AuthService.register(userData);
+      console.log('[AuthContext] Registration successful:', response);
+
+      // Fetch the full user profile after successful registration
+      const currentUser = await AuthService.getCurrentUser();
+      console.log('[AuthContext] User profile retrieved after registration:', currentUser);
+
+      setUser(currentUser);
+      setError(null);
+      return { user: currentUser };
+    } catch (err) {
+      console.error('[AuthContext] Registration error:', err);
+      const errorMessage = err.message || 'Failed to register';
+      setError(errorMessage);
+      setUser(null);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Logout function
   const logout = async () => {
     console.log('[AuthContext] Logout initiated');
     setLoading(true);
-    
+
     try {
       await AuthService.logout();
       console.log('[AuthContext] Logout successful');
@@ -109,7 +137,7 @@ export const AuthProvider = ({ children }) => {
     console.log('[AuthContext] Updating user:', userData);
     setLoading(true);
     setError(null);
-    
+
     try {
       const updatedUser = await AuthService.updateProfile(userData);
       console.log('[AuthContext] User updated successfully:', updatedUser);
@@ -130,7 +158,7 @@ export const AuthProvider = ({ children }) => {
   const refreshAuth = async () => {
     console.log('[AuthContext] Refreshing authentication state');
     setLoading(true);
-    
+
     try {
       const currentUser = await AuthService.getCurrentUser();
       console.log('[AuthContext] Auth refreshed:', currentUser);
@@ -161,7 +189,7 @@ export const AuthProvider = ({ children }) => {
       console.log('[AuthContext] hasRole: No user or roles available');
       return false;
     }
-    
+
     const hasRoleResult = user.roles.includes(role);
     console.log(`[AuthContext] hasRole(${role}):`, hasRoleResult);
     return hasRoleResult;
@@ -191,13 +219,13 @@ export const AuthProvider = ({ children }) => {
   // Check if user can edit a specific pet
   const canEditPet = (petOwnerId) => {
     if (!user) return false;
-    
+
     // Admins can edit any pet
     if (isAdmin()) return true;
-    
+
     // Pet owners can edit their own pets
     if (user.id === petOwnerId) return true;
-    
+
     return false;
   };
 
@@ -212,6 +240,7 @@ export const AuthProvider = ({ children }) => {
     error,
     isInitialized,
     login,
+    register,
     logout,
     updateUser,
     refreshAuth,

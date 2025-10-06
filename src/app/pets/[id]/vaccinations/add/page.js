@@ -117,8 +117,7 @@ export default function AddVaccination() {
                `Administered By: ${formData.administeredBy || 'N/A'}\n` +
                `Location: ${formData.location || 'N/A'}` +
                (formData.expirationDate ? `\nExpiration Date: ${formData.expirationDate}` : ''),
-        veterinarianId: null, // Will be set by the backend based on user role
-        attachments: '' // Required field, empty string for no attachments
+        veterinarianId: null // Will be set by the backend based on user role
       };
 
       // Call API to create health record
@@ -139,10 +138,6 @@ export default function AddVaccination() {
         errorMessage = 'Pet not found.';
       } else if (err.message.includes('400')) {
         errorMessage = 'Invalid vaccination data. Please check all required fields.';
-      } else if (err.message.includes('500')) {
-        errorMessage = 'Server error. Please check the console for details and ensure all required fields are filled.';
-        console.error('500 Error Details - Data sent:', healthRecordData);
-        console.error('500 Error - Full error:', err);
       }
       
       setError(errorMessage);

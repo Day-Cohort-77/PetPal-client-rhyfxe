@@ -206,8 +206,8 @@ export default function EditVaccination() {
         description: formData.vaccineName || formData.vaccineType,
         recordDate: new Date(formData.administrationDate).toISOString(),
         notes: structuredNotes,
-        // Keep existing veterinarian ID if available
-        veterinarianId: vaccination.veterinarianId
+        veterinarianId: vaccination.veterinarianId, // Keep existing veterinarian ID
+        attachments: vaccination.attachments || '' // Keep existing attachments or empty string
       };
 
       // Call API to update health record
@@ -228,6 +228,10 @@ export default function EditVaccination() {
         errorMessage = 'Vaccination record not found.';
       } else if (err.message.includes('400')) {
         errorMessage = 'Invalid vaccination data. Please check all required fields.';
+      } else if (err.message.includes('500')) {
+        errorMessage = 'Server error. Please check the console for details and ensure all required fields are filled.';
+        console.error('500 Error Details - Data sent:', healthRecordData);
+        console.error('500 Error - Full error:', err);
       }
       
       setError(errorMessage);

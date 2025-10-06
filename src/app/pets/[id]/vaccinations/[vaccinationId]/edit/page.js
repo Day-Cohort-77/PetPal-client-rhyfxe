@@ -77,17 +77,83 @@ export default function EditVaccination() {
           return;
         }
 
+        // Parse structured notes to populate form fields
+        const parseVaccinationNotes = (notes) => {
+          const parsed = {
+            vaccineType: '',
+            lotNumber: '',
+            administeredBy: '',
+            location: '',
+            expirationDate: '',
+            notes: notes || ''
+          };
+
+          if (notes) {
+            const lines = notes.split('\n');
+            lines.forEach(line => {
+              if (line.startsWith('Vaccine Type:')) {
+                parsed.vaccineType = line.replace('Vaccine Type:', '').trim();
+              } else if (line.startsWith('Lot Number:')) {
+                parsed.lotNumber = line.replace('Lot Number:', '').trim();
+                if (parsed.lotNumber === 'N/A') parsed.lotNumber = '';
+              } else if (line.startsWith('Administered By:')) {
+                parsed.administeredBy = line.replace('Administered By:', '').trim();
+                if (parsed.administeredBy === 'N/A') parsed.administeredBy = '';
+              } else if (line.startsWith('Location:')) {
+                parsed.location = line.replace('Location:', '').trim();
+                if (parsed.location === 'N/A') parsed.location = '';
+              } else if (line.startsWith('Expiration Date:')) {
+                const dateStr = line.replace('Expiration Date:', '').trim();
+                if (dateStr && dateStr !== 'N/A') {
+                  // Try to parse the date and convert to YYYY-MM-DD format
+                  try {
+                    const date = new Date(dateStr);
+                    if (!isNaN(date.getTime())) {
+                      parsed.expirationDate = date.toISOString().split('T')[0];
+                    }
+                  } catch (e) {
+                    console.warn('Could not parse expiration date:', dateStr);
+                  }
+                }
+              }
+            });
+
+            // Remove structured lines from notes to get clean notes
+            const cleanNotes = notes
+              .split('\n')
+              .filter(line => 
+                !line.startsWith('Vaccine Type:') &&
+                !line.startsWith('Lot Number:') &&
+                !line.startsWith('Administered By:') &&
+                !line.startsWith('Location:') &&
+                !line.startsWith('Expiration Date:')
+              )
+              .join('\n')
+              .trim();
+            
+            if (cleanNotes) {
+              parsed.notes = cleanNotes;
+            } else {
+              parsed.notes = '';
+            }
+          }
+
+          return parsed;
+        };
+
+        const parsedNotes = parseVaccinationNotes(vaccinationData.notes);
+
         // Populate form with existing data
         setFormData({
           vaccineName: vaccinationData.description || '',
-          vaccineType: vaccinationData.description || '',
+          vaccineType: parsedNotes.vaccineType || vaccinationData.description || '',
           administrationDate: vaccinationData.recordDate ? 
             new Date(vaccinationData.recordDate).toISOString().split('T')[0] : '',
-          expirationDate: '',
-          lotNumber: '',
-          administeredBy: vaccinationData.veterinarianName || '',
-          location: '',
-          notes: vaccinationData.notes || ''
+          expirationDate: parsedNotes.expirationDate || '',
+          lotNumber: parsedNotes.lotNumber || '',
+          administeredBy: parsedNotes.administeredBy || vaccinationData.veterinarianName || '',
+          location: parsedNotes.location || '',
+          notes: parsedNotes.notes || ''
         });
       } catch (err) {
         console.error('Error fetching data:', err);
@@ -117,18 +183,29 @@ export default function EditVaccination() {
     }));
   };
 
+
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setIsSaving(true);
 
     try {
-      // Prepare health record data
+      // Prepare health record data with structured notes
+      const structuredNotes = [
+        formData.notes || '', // User's custom notes first
+        formData.vaccineType ? `Vaccine Type: ${formData.vaccineType}` : '',
+        formData.lotNumber ? `Lot Number: ${formData.lotNumber}` : 'Lot Number: N/A',
+        formData.administeredBy ? `Administered By: ${formData.administeredBy}` : 'Administered By: N/A',
+        formData.location ? `Location: ${formData.location}` : 'Location: N/A',
+        formData.expirationDate ? `Expiration Date: ${formData.expirationDate}` : ''
+      ].filter(Boolean).join('\n');
+
       const healthRecordData = {
         recordType: 'VACCINATION',
         description: formData.vaccineName || formData.vaccineType,
         recordDate: new Date(formData.administrationDate).toISOString(),
-        notes: formData.notes,
+        notes: structuredNotes,
         // Keep existing veterinarian ID if available
         veterinarianId: vaccination.veterinarianId
       };
@@ -280,6 +357,8 @@ export default function EditVaccination() {
                       placeholder="Enter location where administered"
                     />
                   </Box>
+
+
 
                   <Box>
                     <Text as="label" size="2" mb="1" htmlFor="notes">

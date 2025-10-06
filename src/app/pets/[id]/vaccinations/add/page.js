@@ -33,7 +33,6 @@ export default function AddVaccination() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [documents, setDocuments] = useState([]);
 
   // Common vaccine types for selection
   const vaccineTypes = [
@@ -118,8 +117,7 @@ export default function AddVaccination() {
                `Administered By: ${formData.administeredBy || 'N/A'}\n` +
                `Location: ${formData.location || 'N/A'}` +
                (formData.expirationDate ? `\nExpiration Date: ${formData.expirationDate}` : ''),
-        veterinarianId: null, // Will be set by the backend based on user role
-        attachments: ''
+        veterinarianId: null // Will be set by the backend based on user role
       };
 
       // Call API to create health record
@@ -268,45 +266,7 @@ export default function AddVaccination() {
                     />
                   </Box>
 
-                  <Box>
-                    <Text as="label" size="2" mb="1" htmlFor="documents">
-                      Upload Documents
-                    </Text>
-                    <input
-                      type="file"
-                      id="documents"
-                      multiple
-                      onChange={handleDocumentChange}
-                      style={{
-                        width: '100%',
-                        padding: '8px',
-                        border: '1px solid var(--gray-6)',
-                        borderRadius: 'var(--radius-2)'
-                      }}
-                    />
-                    {documents.length > 0 && (
-                      <Box mt="2">
-                        <Text size="2" weight="bold">Selected Documents:</Text>
-                        <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
-                          {documents.map((doc, index) => (
-                            <li key={index} style={{ marginBottom: '4px' }}>
-                              <Flex align="center" gap="2">
-                                <Text size="2">{doc.name}</Text>
-                                <Button
-                                  size="1"
-                                  variant="soft"
-                                  color="red"
-                                  onClick={() => removeDocument(index)}
-                                >
-                                  Remove
-                                </Button>
-                              </Flex>
-                            </li>
-                          ))}
-                        </ul>
-                      </Box>
-                    )}
-                  </Box>
+
 
                   <Box>
                     <Text as="label" size="2" mb="1" htmlFor="notes">

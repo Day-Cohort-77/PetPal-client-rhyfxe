@@ -105,6 +105,58 @@ const VaccinationsList = ({ petId, onUpdate }) => {
     }
   };
 
+  // Parse structured vaccination notes to extract individual fields
+  const parseVaccinationNotes = (notes) => {
+    const parsed = {
+      vaccineType: '',
+      lotNumber: '',
+      administeredBy: '',
+      location: '',
+      expirationDate: '',
+      notes: notes || ''
+    };
+
+    if (notes) {
+      const lines = notes.split('\n');
+      lines.forEach(line => {
+        if (line.startsWith('Vaccine Type:')) {
+          parsed.vaccineType = line.replace('Vaccine Type:', '').trim();
+        } else if (line.startsWith('Lot Number:')) {
+          parsed.lotNumber = line.replace('Lot Number:', '').trim();
+          if (parsed.lotNumber === 'N/A') parsed.lotNumber = '';
+        } else if (line.startsWith('Administered By:')) {
+          parsed.administeredBy = line.replace('Administered By:', '').trim();
+          if (parsed.administeredBy === 'N/A') parsed.administeredBy = '';
+        } else if (line.startsWith('Location:')) {
+          parsed.location = line.replace('Location:', '').trim();
+          if (parsed.location === 'N/A') parsed.location = '';
+        } else if (line.startsWith('Expiration Date:')) {
+          const dateStr = line.replace('Expiration Date:', '').trim();
+          if (dateStr && dateStr !== 'N/A') {
+            parsed.expirationDate = dateStr;
+          }
+        }
+      });
+
+      // Remove structured lines from notes to get clean notes
+      const cleanNotes = notes
+        .split('\n')
+        .filter(line => 
+          !line.startsWith('Vaccine Type:') &&
+          !line.startsWith('Lot Number:') &&
+          !line.startsWith('Administered By:') &&
+          !line.startsWith('Location:') &&
+          !line.startsWith('Expiration Date:')
+        )
+        .join('\n')
+        .trim();
+      
+      parsed.notes = cleanNotes || '';
+    }
+
+    return parsed;
+  };
+
   if (isLoading) {
     return <Text>Loading vaccination records...</Text>;
   }
@@ -166,7 +218,10 @@ const VaccinationsList = ({ petId, onUpdate }) => {
         </Box>
       )}
       
-      {vaccinations.map((vaccination) => (
+      {vaccinations.map((vaccination) => {
+        const parsedData = parseVaccinationNotes(vaccination.notes);
+        
+        return (
         <Card key={vaccination.id} variant="outline">
           <Flex gap="3" p="4" align="start">
             <Box style={{ flex: 1 }}>
@@ -174,11 +229,16 @@ const VaccinationsList = ({ petId, onUpdate }) => {
               <Flex justify="between" align="start" mb="2">
                 <Box>
                   <Heading size="3" mb="1">{vaccination.description}</Heading>
-                  {vaccination.recordType && (
+                  <Flex gap="2" align="center">
                     <Badge color={getVaccineTypeBadgeColor(vaccination.description)} size="1">
                       Vaccination
                     </Badge>
-                  )}
+                    {parsedData.vaccineType && parsedData.vaccineType !== vaccination.description && (
+                      <Badge color="gray" size="1" variant="soft">
+                        {parsedData.vaccineType}
+                      </Badge>
+                    )}
+                  </Flex>
                 </Box>
                 
                 {/* Action buttons for vets/admins only */}
@@ -214,22 +274,70 @@ const VaccinationsList = ({ petId, onUpdate }) => {
                 </Box>
               )}
               
+              {/* Structured vaccination details */}
               <Grid columns="2" gap="3" mt="2">
                 <Box>
                   <Text size="2" weight="bold" color="gray">
                     <FiCalendar style={{ display: 'inline', marginRight: '4px' }} />
-                    Date Administered:
+                    Date Administered: 
                   </Text>
-                  <Text size="2">{formatDate(vaccination.recordDate)}</Text>
+                  <Text size="2"> {formatDate(vaccination.recordDate)}</Text>
                 </Box>
                 
-                {vaccination.notes && (
+                {parsedData.expirationDate && (
                   <Box>
-                    <Text size="2" weight="bold" color="gray">Notes:</Text>
-                    <Text size="2">{vaccination.notes}</Text>
+                    <Text size="2" weight="bold" color="gray">
+                      Expiration Date: 
+                    </Text>
+                    <Text size="2"> {parsedData.expirationDate}</Text>
                   </Box>
                 )}
+                
+                {parsedData.lotNumber && (
+                  <Box>
+                    <Text size="2" weight="bold" color="gray">
+                      Lot Number: 
+                    </Text>
+                    <Text size="2"> {parsedData.lotNumber}</Text>
+                  </Box>
+                )}
+                
+                {parsedData.administeredBy && (
+                  <Box>
+                    <Text size="2" weight="bold" color="gray">
+                      Administered By: 
+                    </Text>
+                    <Text size="2"> {parsedData.administeredBy}</Text>
+                  </Box>
+                )}
+                
+                {parsedData.location && (
+                  <Box>
+                    <Text size="2" weight="bold" color="gray">
+                      Location: 
+                    </Text>
+                    <Text size="2"> {parsedData.location}</Text>
+                  </Box>
+                )}
+                
+
               </Grid>
+
+              {/* User notes if available */}
+              {parsedData.notes && (
+                <Box mt="3" p="3" style={{ 
+                  backgroundColor: 'var(--gray-2)', 
+                  borderRadius: 'var(--radius-2)',
+                  border: '1px solid var(--gray-4)'
+                }}>
+                  <Text size="2" weight="bold" color="gray" mb="1" style={{ display: 'block' }}>
+                    Notes: 
+                  </Text>
+                  <Text size="2" style={{ whiteSpace: 'pre-wrap' }}>
+                    {parsedData.notes}
+                  </Text>
+                </Box>
+              )}
 
               {/* Additional vaccination details if available */}
               <Box mt="2">
@@ -243,7 +351,8 @@ const VaccinationsList = ({ petId, onUpdate }) => {
             </Box>
           </Flex>
         </Card>
-      ))}
+        );
+      })}
     </Flex>
   );
 };

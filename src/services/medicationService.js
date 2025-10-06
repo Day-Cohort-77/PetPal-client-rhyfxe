@@ -157,7 +157,7 @@ export const getActiveReminders = async (userId) => {
 // Log medication administration
 export const logAdministration = async (logData) => {
   try {
-    return await post('/medications/administration-log', logData);
+    return await post('/api/medication-reminders/log', logData);
   } catch (error) {
     console.error('Error logging medication administration:', error);
     if (error.message.includes('401')) {

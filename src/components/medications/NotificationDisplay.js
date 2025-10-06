@@ -27,9 +27,9 @@ const NotificationDisplay = ({ userId }) => {
     setLoading(true);
     try {
       await logAdministration({
-        medicationId,
-        petId,
-        reminderId,
+        medicationId: parseInt(medicationId),
+        petId: parseInt(petId),
+        reminderId: reminderId ? parseInt(reminderId) : null,
         status: 'administered',
         administeredAt: new Date().toISOString(),
         notes: ''
@@ -51,9 +51,9 @@ const NotificationDisplay = ({ userId }) => {
     setLoading(true);
     try {
       await logAdministration({
-        medicationId,
-        petId,
-        reminderId,
+        medicationId: parseInt(medicationId),
+        petId: parseInt(petId),
+        reminderId: reminderId ? parseInt(reminderId) : null,
         status: 'skipped',
         administeredAt: new Date().toISOString(),
         notes: 'Skipped by user'

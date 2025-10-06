@@ -28,17 +28,19 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        <AuthProvider>
-          <ThemeProvider>
-            <AuthThemeBridge>
-              <DynamicThemeWrapper>
-                <NotificationWrapper>
-                  {children}
-                </NotificationWrapper>
-              </DynamicThemeWrapper>
-            </AuthThemeBridge>
-          </ThemeProvider>
-        </AuthProvider>
+        <QueryProvider>
+          <AuthProvider>
+            <ThemeProvider>
+              <AuthThemeBridge>
+                <DynamicThemeWrapper>
+                  <NotificationWrapper>
+                    {children}
+                  </NotificationWrapper>
+                </DynamicThemeWrapper>
+              </AuthThemeBridge>
+            </ThemeProvider>
+          </AuthProvider>
+        </QueryProvider>
       </body>
     </html>
   );

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { getPetById, updatePet } from '../../../../services/petService';
-import { uploadPetImage } from '../../../../services/fileUploadService';
+import { uploadPetImage, getImageUrl } from '../../../../services/fileUploadService'; // Add getImageUrl import
 import Navbar from '../../../../components/Navbar';
 import ProtectedRoute from '../../../../components/ProtectedRoute';
 import FeatureErrorBoundary from '../../../../components/FeatureErrorBoundary';
@@ -61,8 +61,9 @@ export default function EditPet() {
           notes: petData.notes || ''
         });
 
+        // FIX: Use getImageUrl to construct the full URL
         if (petData.imageUrl) {
-          setImagePreview(petData.imageUrl);
+          setImagePreview(getImageUrl(petData.imageUrl));
         }
       } catch (err) {
         console.error('Error fetching pet details:', err);
@@ -98,7 +99,7 @@ export default function EditPet() {
       setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImagePreview(reader.result);
+        setImagePreview(reader.result); // This creates a data URL for new uploads
       };
       reader.readAsDataURL(file);
     }

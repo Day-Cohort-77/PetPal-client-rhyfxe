@@ -6,6 +6,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { getPetById, updatePet, deletePet } from '../../../services/petService';
 import { getPetAppointments } from '../../../services/appointmentService';
 import { getMedicationsForPet } from '../../../services/medicationService';
+import { getImageUrl } from '../../../services/fileUploadService'; // Add this import
 import Navbar from '../../../components/Navbar';
 import FeatureErrorBoundary from '../../../components/FeatureErrorBoundary';
 import ProtectedRoute from '../../../components/ProtectedRoute';
@@ -219,7 +220,7 @@ export default function PetDetails() {
                 <Flex gap="4" align="center">
                   <Avatar
                     size="6"
-                    src={pet.imageUrl}
+                    src={getImageUrl(pet.imageUrl)} // ✅ FIX: Use getImageUrl here
                     fallback={pet.name.charAt(0)}
                     radius="full"
                   />

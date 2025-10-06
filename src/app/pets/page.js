@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { getUserPets } from '../../services/petService';
+import { getImageUrl } from '../../services/fileUploadService'; // Add this import
 import Navbar from '../../components/Navbar';
 import FeatureErrorBoundary from '../../components/FeatureErrorBoundary';
 import ProtectedRoute from '../../components/ProtectedRoute';
@@ -72,7 +73,7 @@ export default function Pets() {
                       <Flex align="center" gap="3">
                         <Avatar
                           size="4"
-                          src={pet.imageUrl}
+                          src={getImageUrl(pet.imageUrl)} // ✅ FIX: Use getImageUrl here
                           fallback={pet.name.charAt(0)}
                           radius="full"
                         />

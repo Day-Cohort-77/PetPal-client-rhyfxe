@@ -20,7 +20,7 @@ export default function EditPet() {
     name: '',
     species: '',
     breed: '',
-    birthDate: '',
+    dateOfBirth: new Date().toISOString().split('T')[0], // Default to today's date
     weight: '',
     weightUnit: 'lbs',
     color: '',
@@ -40,11 +40,11 @@ export default function EditPet() {
         const petData = await getPetById(petId);
 
         // Format date for input field (YYYY-MM-DD)
-        let formattedBirthDate = '';
-        if (petData.birthDate) {
-          const date = new Date(petData.birthDate);
-          if (!isNaN(date.getTime())) {
-            formattedBirthDate = date.toISOString().split('T')[0];
+        let formattedDateOfBirth = new Date().toISOString().split('T')[0]; // Default to today
+        if (petData.dateOfBirth) {
+          const date = new Date(petData.dateOfBirth);
+          if (!isNaN(date.getTime()) && date.getFullYear() > 1900) { // Only use if it's a reasonable date
+            formattedDateOfBirth = date.toISOString().split('T')[0];
           }
         }
 
@@ -52,7 +52,7 @@ export default function EditPet() {
           name: petData.name || '',
           species: petData.species || 'Dog',
           breed: petData.breed || '',
-          birthDate: formattedBirthDate,
+          dateOfBirth: formattedDateOfBirth,
           weight: petData.weight || '',
           weightUnit: petData.weightUnit || 'lbs',
           color: petData.color || '',
@@ -114,11 +114,11 @@ export default function EditPet() {
       // Create FormData for pet data
       const petData = { ...formData };
 
-      // Convert birthDate to ISO format if needed
-      if (petData.birthDate) {
-        const date = new Date(petData.birthDate);
+      // Convert dateOfBirth to ISO format if needed
+      if (petData.dateOfBirth) {
+        const date = new Date(petData.dateOfBirth);
         if (!isNaN(date.getTime())) {
-          petData.birthDate = date.toISOString();
+          petData.dateOfBirth = date.toISOString();
         }
       }
 
@@ -216,13 +216,13 @@ export default function EditPet() {
 
                   <Grid columns="2" gap="4">
                     <Box>
-                      <Text as="label" size="2" mb="1" htmlFor="birthDate">
+                      <Text as="label" size="2" mb="1" htmlFor="dateOfBirth">
                         Birth Date
                       </Text>
                       <TextField.Root
-                        id="birthDate"
+                        id="dateOfBirth"
                         type="date"
-                        value={formData.birthDate}
+                        value={formData.dateOfBirth}
                         onChange={handleChange}
                       />
                     </Box>
@@ -307,18 +307,45 @@ export default function EditPet() {
                     <Text as="label" size="2" mb="1" htmlFor="petImage">
                       Pet Photo
                     </Text>
-                    <input
-                      type="file"
-                      id="petImage"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      style={{
-                        width: '100%',
-                        padding: '8px',
-                        border: '1px solid var(--gray-6)',
-                        borderRadius: 'var(--radius-2)'
-                      }}
-                    />
+                    <Flex direction="column" gap="2">
+                      <Box>
+                        <input
+                          type="file"
+                          id="petImage"
+                          accept="image/*"
+                          onChange={handleImageChange}
+                          style={{
+                            position: 'absolute',
+                            width: '1px',
+                            height: '1px',
+                            padding: 0,
+                            margin: '-1px',
+                            overflow: 'hidden',
+                            clip: 'rect(0, 0, 0, 0)',
+                            whiteSpace: 'nowrap',
+                            border: 0
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => document.getElementById('petImage').click()}
+                          style={{ width: '100%' }}
+                        >
+                          {imageFile ? 'Change Photo' : imagePreview ? 'Replace Photo' : 'Choose Photo'}
+                        </Button>
+                      </Box>
+                      {!imageFile && imagePreview && (
+                        <Text size="2" color="gray">
+                          Current image is uploaded.
+                        </Text>
+                      )}
+                      {imageFile && (
+                        <Text size="2" color="green">
+                          New image selected: {imageFile.name}
+                        </Text>
+                      )}
+                    </Flex>
                     {imagePreview && (
                       <Box mt="2">
                         <img

@@ -18,6 +18,29 @@ export default function Pets() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Helper function to calculate age from date of birth
+  const calculateAge = (dateOfBirth) => {
+    if (!dateOfBirth) return 'Unknown';
+
+    const birthDate = new Date(dateOfBirth);
+    if (isNaN(birthDate.getTime())) return 'Unknown';
+
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+
+    if (age === 0) {
+      const months = today.getMonth() - birthDate.getMonth() + (12 * (today.getFullYear() - birthDate.getFullYear()));
+      return months <= 1 ? 'Puppy/Kitten' : `${months} months`;
+    }
+
+    return `${age} year${age !== 1 ? 's' : ''}`;
+  };
+
   useEffect(() => {
     // Fetch user's pets
     const fetchPets = async () => {
@@ -83,7 +106,7 @@ export default function Pets() {
                         </Box>
                       </Flex>
                       <Flex gap="3">
-                        <Text size="2">Age: {pet.age}</Text>
+                        <Text size="2">Age: {calculateAge(pet.dateOfBirth)}</Text>
                         <Text size="2">Weight: {pet.weight} {pet.weightUnit}</Text>
                       </Flex>
                     </Flex>

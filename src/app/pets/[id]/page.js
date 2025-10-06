@@ -21,17 +21,17 @@ export default function PetDetails() {
   const router = useRouter();
   const params = useParams();
   const petId = params.id;
-  
+
   // Check if user has medication management permissions (Admin or Veterinarian)
   const canManageMedications = isAdmin() || isVeterinarian();
 
   // Helper function to format frequency display
   const formatFrequency = (frequency) => {
     if (!frequency) return 'Not specified';
-    
+
     const frequencyMap = {
       'once_daily': 'Once daily',
-      'twice_daily': 'Twice daily', 
+      'twice_daily': 'Twice daily',
       'three_times_daily': 'Three times daily',
       'four_times_daily': 'Four times daily',
       'every_other_day': 'Every other day',
@@ -39,45 +39,45 @@ export default function PetDetails() {
       'as_needed': 'As needed (PRN)',
       'custom': 'Custom'
     };
-    
+
     return frequencyMap[frequency] || frequency;
   };
 
   // Helper function to format dosage display
   const formatDosage = (medication) => {
     if (!medication) return 'No dosage specified';
-    
+
     console.log('🔍 Formatting dosage for:', {
       name: medication.name,
       dosage: medication.dosage,
       dosageUnit: medication.dosageUnit,
       type: typeof medication.dosage
     });
-    
+
     // If dosage already contains a unit (like "25 mg" or "2 drops"), return as is
     if (medication.dosage && /\d+\s+(mg|ml|g|tablet|capsule|drop|puff|unit|cc|tsp)s?$/i.test(medication.dosage)) {
       return medication.dosage;
     }
-    
+
     // If we have separate dosage and dosageUnit fields, combine them
     if (medication.dosage && medication.dosageUnit) {
       return `${medication.dosage} ${medication.dosageUnit}`;
     }
-    
+
     // If only dosage exists, check if it needs a unit
     if (medication.dosage) {
       const dosageStr = String(medication.dosage);
-      
+
       // Check if it's just a number (like "25")
       if (/^\d+(\.\d+)?$/.test(dosageStr)) {
         // For Rimadyl and other pain medications, mg is most common
         // But we should ideally get this from the backend
         return `${dosageStr} mg`;
       }
-      
+
       return dosageStr;
     }
-    
+
     return 'No dosage specified';
   };
 
@@ -140,13 +140,13 @@ export default function PetDetails() {
       alert('You do not have permission to delete medications.');
       return;
     }
-    
+
     if (confirm('Are you sure you want to delete this medication?')) {
       try {
         // Import the delete medication service
         const { deleteMedication } = await import('../../../services/medicationService');
         await deleteMedication(medicationId);
-        
+
         // Refresh the medications list
         const medicationsData = await getMedicationsForPet(petId);
         setPetMedications(medicationsData || []);
@@ -179,8 +179,19 @@ export default function PetDetails() {
 
   const formatDate = (dateString) => {
     if (!dateString) return 'Unknown';
+
+    // Handle dates without timezone conversion issues
+    // Parse as local date to avoid timezone shifts
     const date = new Date(dateString);
-    return isNaN(date.getTime()) ? 'Invalid date' : date.toLocaleDateString();
+    if (isNaN(date.getTime())) return 'Invalid date';
+
+    // For date-only values (like birth dates), we want to show the actual date
+    // without timezone conversion affecting it
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth() + 1;
+    const day = date.getUTCDate();
+
+    return `${month}/${day}/${year}`;
   };
 
   const calculateAge = (birthDate) => {
@@ -189,12 +200,26 @@ export default function PetDetails() {
     const birth = new Date(birthDate);
     if (isNaN(birth.getTime())) return 'Unknown';
 
+    // Use UTC dates to avoid timezone issues with birth dates
     const now = new Date();
-    let years = now.getFullYear() - birth.getFullYear();
-    const months = now.getMonth() - birth.getMonth();
+    const birthYear = birth.getUTCFullYear();
+    const birthMonth = birth.getUTCMonth();
+    const birthDay = birth.getUTCDate();
 
-    if (months < 0 || (months === 0 && now.getDate() < birth.getDate())) {
+    const nowYear = now.getFullYear();
+    const nowMonth = now.getMonth();
+    const nowDay = now.getDate();
+
+    let years = nowYear - birthYear;
+    const months = nowMonth - birthMonth;
+
+    if (months < 0 || (months === 0 && nowDay < birthDay)) {
       years--;
+    }
+
+    if (years === 0) {
+      const totalMonths = nowMonth - birthMonth + (12 * (nowYear - birthYear));
+      return totalMonths <= 1 ? 'Puppy/Kitten' : `${totalMonths} months`;
     }
 
     return years === 1 ? '1 year' : `${years} years`;
@@ -265,8 +290,8 @@ export default function PetDetails() {
                       <Grid columns="2" gap="4">
                         <InfoItem label="Species" value={pet.species} />
                         <InfoItem label="Breed" value={pet.breed || 'Not specified'} />
-                        <InfoItem label="Birth Date" value={formatDate(pet.birthDate)} />
-                        <InfoItem label="Age" value={calculateAge(pet.birthDate)} />
+                        <InfoItem label="Birth Date" value={formatDate(pet.dateOfBirth)} />
+                        <InfoItem label="Age" value={calculateAge(pet.dateOfBirth)} />
                         <InfoItem label="Gender" value={pet.gender || 'Not specified'} />
                         <InfoItem label="Color" value={pet.color || 'Not specified'} />
                         <InfoItem label="Weight" value={pet.weight ? `${pet.weight} ${pet.weightUnit || 'lbs'}` : 'Not specified'} />
@@ -354,10 +379,10 @@ export default function PetDetails() {
 
                       {/* Health records are viewable by all users, but only manageable by vets/admins */}
                       <Text>
-                        No health records found. 
+                        No health records found.
                         {canManageMedications ? ' Add a health record to get started.' : ' Health records from veterinary visits will appear here.'}
                       </Text>
-                      
+
                       {/* TODO: Add health records list here - viewable by all users */}
                       {/* Each record should have edit/delete buttons only visible to vets/admins */}
                     </Flex>
@@ -378,10 +403,10 @@ export default function PetDetails() {
 
                       {/* Vaccinations are viewable by all users, but only manageable by vets/admins */}
                       <Text>
-                        No vaccinations found. 
+                        No vaccinations found.
                         {canManageMedications ? ' Add a vaccination record to get started.' : ' Vaccination records from your veterinarian will appear here.'}
                       </Text>
-                      
+
                       {/* TODO: Add vaccinations list here - viewable by all users */}
                       {/* Each vaccination should have edit/delete buttons only visible to vets/admins */}
                     </Flex>
@@ -402,7 +427,7 @@ export default function PetDetails() {
 
                       {petMedications.length === 0 ? (
                         <Text>
-                          No medications found. 
+                          No medications found.
                           {canManageMedications ? ' Add a medication to get started.' : ' Medications prescribed by your veterinarian will appear here.'}
                         </Text>
                       ) : (
@@ -446,7 +471,7 @@ export default function PetDetails() {
                                       )}
                                     </Flex>
                                   </Flex>
-                                  
+
                                   {/* Prescribed by information prominently displayed */}
                                   {medication.prescriber && (
                                     <Box mb="3">
@@ -455,7 +480,7 @@ export default function PetDetails() {
                                       </Text>
                                     </Box>
                                   )}
-                                  
+
                                   <Grid columns="2" gap="3" mt="2">
                                     <Box>
                                       <Text size="2" weight="bold" color="gray">Frequency:</Text>

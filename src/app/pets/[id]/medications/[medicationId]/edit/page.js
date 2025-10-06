@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '../../../../../../contexts/AuthContext';
 import { getPetById } from '../../../../../../services/petService';
 import { getMedicationById, updateMedication } from '../../../../../../services/medicationService';
+import { MedicationReminderSettings, MedicationHistory } from '../../../../../../components/medications';
 import ProtectedRoute from '../../../../../../components/ProtectedRoute';
 import Navbar from '../../../../../../components/Navbar';
 import FeatureErrorBoundary from '../../../../../../components/FeatureErrorBoundary';
@@ -41,6 +42,8 @@ export default function EditMedication() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [showReminderSettings, setShowReminderSettings] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   // Dosage units and frequency options (same as add page)
   const dosageUnits = [
@@ -189,6 +192,12 @@ export default function EditMedication() {
       ...prev,
       reminderTimes: newReminderTimes
     }));
+  };
+
+  // Handle reminder settings save
+  const handleReminderSave = (reminders) => {
+    console.log('Reminders updated:', reminders);
+    setShowReminderSettings(false);
   };
 
   // Client-side validation (matching backend required fields exactly)
@@ -578,6 +587,48 @@ export default function EditMedication() {
                   </Flex>
                 </Flex>
               </form>
+            )}
+
+            {/* Reminder Settings Section */}
+            {!isLoading && medication && (
+              <Box mt="4">
+                <Flex gap="3" mb="3">
+                  <Button
+                    variant={showReminderSettings ? "solid" : "soft"}
+                    onClick={() => {
+                      setShowReminderSettings(!showReminderSettings);
+                      setShowHistory(false);
+                    }}
+                  >
+                    {showReminderSettings ? '📱 Hide' : '📱 Configure'} Reminders
+                  </Button>
+                  <Button
+                    variant={showHistory ? "solid" : "soft"}
+                    onClick={() => {
+                      setShowHistory(!showHistory);
+                      setShowReminderSettings(false);
+                    }}
+                  >
+                    {showHistory ? '📊 Hide' : '📊 View'} History
+                  </Button>
+                </Flex>
+
+                {showReminderSettings && (
+                  <MedicationReminderSettings
+                    medicationId={parseInt(medicationId)}
+                    petId={parseInt(petId)}
+                    onSave={handleReminderSave}
+                    existingReminders={medication.reminders || []}
+                  />
+                )}
+
+                {showHistory && (
+                  <MedicationHistory
+                    petId={parseInt(petId)}
+                    medicationId={parseInt(medicationId)}
+                  />
+                )}
+              </Box>
             )}
           </Flex>
         </Card>

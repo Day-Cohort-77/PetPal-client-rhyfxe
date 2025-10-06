@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePetMedications } from '../../hooks/usePetMedications';
 import { format } from 'date-fns';
+import TodaysReminders from './TodaysReminders';
 
 const MedicationsList = ({ petId }) => {
   const router = useRouter();
@@ -68,6 +69,9 @@ const MedicationsList = ({ petId }) => {
 
   return (
     <div className="space-y-4">
+      {/* Today's Reminders */}
+      <TodaysReminders petId={petId} />
+      
       {/* Filters */}
       <div className="flex gap-4 mb-4">
         <input

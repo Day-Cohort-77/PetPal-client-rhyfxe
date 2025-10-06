@@ -7,6 +7,7 @@ import { ThemeProvider } from '../contexts/ThemeContext';
 import { QueryProvider } from '../providers/QueryProvider';
 import DynamicThemeWrapper from '../components/DynamicThemeWrapper';
 import AuthThemeBridge from '../components/AuthThemeBridge';
+import NotificationWrapper from '../components/NotificationWrapper';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,7 +32,9 @@ export default function RootLayout({ children }) {
           <ThemeProvider>
             <AuthThemeBridge>
               <DynamicThemeWrapper>
-                {children}
+                <NotificationWrapper>
+                  {children}
+                </NotificationWrapper>
               </DynamicThemeWrapper>
             </AuthThemeBridge>
           </ThemeProvider>

@@ -80,7 +80,7 @@ export default function EditVaccination() {
         // Populate form with existing data
         setFormData({
           vaccineName: vaccinationData.description || '',
-          vaccineType: vaccinationData.description || '',
+          vaccineType: vaccinationData.vaccineType || '',
           administrationDate: vaccinationData.recordDate ? 
             new Date(vaccinationData.recordDate).toISOString().split('T')[0] : '',
           expirationDate: '',

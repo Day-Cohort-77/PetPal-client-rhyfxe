@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '../../../../../../contexts/AuthContext';
 import { getPetById } from '../../../../../../services/petService';
-import { getHealthRecordById, updateHealthRecord } from '../../../../../../services/healthRecordService';
+import { getVaccinationById, updateVaccination } from '../../../../../../services/vaccinationService';
 import Navbar from '../../../../../../components/Navbar';
 import FeatureErrorBoundary from '../../../../../../components/FeatureErrorBoundary';
 import ProtectedRoute from '../../../../../../components/ProtectedRoute';
@@ -65,95 +65,24 @@ export default function EditVaccination() {
       try {
         const [petData, vaccinationData] = await Promise.all([
           getPetById(petId),
-          getHealthRecordById(vaccinationId)
+          getVaccinationById(vaccinationId)
         ]);
 
         setPet(petData);
         setVaccination(vaccinationData);
 
-        // Verify this is actually a vaccination record
-        if (vaccinationData.recordType.toLowerCase() !== 'vaccination') {
-          setError('This record is not a vaccination record.');
-          return;
-        }
-
-        // Parse structured notes to populate form fields
-        const parseVaccinationNotes = (notes) => {
-          const parsed = {
-            vaccineType: '',
-            lotNumber: '',
-            administeredBy: '',
-            location: '',
-            expirationDate: '',
-            notes: notes || ''
-          };
-
-          if (notes) {
-            const lines = notes.split('\n');
-            lines.forEach(line => {
-              if (line.startsWith('Vaccine Type:')) {
-                parsed.vaccineType = line.replace('Vaccine Type:', '').trim();
-              } else if (line.startsWith('Lot Number:')) {
-                parsed.lotNumber = line.replace('Lot Number:', '').trim();
-                if (parsed.lotNumber === 'N/A') parsed.lotNumber = '';
-              } else if (line.startsWith('Administered By:')) {
-                parsed.administeredBy = line.replace('Administered By:', '').trim();
-                if (parsed.administeredBy === 'N/A') parsed.administeredBy = '';
-              } else if (line.startsWith('Location:')) {
-                parsed.location = line.replace('Location:', '').trim();
-                if (parsed.location === 'N/A') parsed.location = '';
-              } else if (line.startsWith('Expiration Date:')) {
-                const dateStr = line.replace('Expiration Date:', '').trim();
-                if (dateStr && dateStr !== 'N/A') {
-                  // Try to parse the date and convert to YYYY-MM-DD format
-                  try {
-                    const date = new Date(dateStr);
-                    if (!isNaN(date.getTime())) {
-                      parsed.expirationDate = date.toISOString().split('T')[0];
-                    }
-                  } catch (e) {
-                    console.warn('Could not parse expiration date:', dateStr);
-                  }
-                }
-              }
-            });
-
-            // Remove structured lines from notes to get clean notes
-            const cleanNotes = notes
-              .split('\n')
-              .filter(line => 
-                !line.startsWith('Vaccine Type:') &&
-                !line.startsWith('Lot Number:') &&
-                !line.startsWith('Administered By:') &&
-                !line.startsWith('Location:') &&
-                !line.startsWith('Expiration Date:')
-              )
-              .join('\n')
-              .trim();
-            
-            if (cleanNotes) {
-              parsed.notes = cleanNotes;
-            } else {
-              parsed.notes = '';
-            }
-          }
-
-          return parsed;
-        };
-
-        const parsedNotes = parseVaccinationNotes(vaccinationData.notes);
-
-        // Populate form with existing data
+        // Populate form with existing vaccination record data
         setFormData({
-          vaccineName: vaccinationData.description || '',
-          vaccineType: parsedNotes.vaccineType || vaccinationData.description || '',
-          administrationDate: vaccinationData.recordDate ? 
-            new Date(vaccinationData.recordDate).toISOString().split('T')[0] : '',
-          expirationDate: parsedNotes.expirationDate || '',
-          lotNumber: parsedNotes.lotNumber || '',
-          administeredBy: parsedNotes.administeredBy || vaccinationData.veterinarianName || '',
-          location: parsedNotes.location || '',
-          notes: parsedNotes.notes || ''
+          vaccineName: vaccinationData.vaccineName || '',
+          vaccineType: vaccinationData.vaccineType || '',
+          administrationDate: vaccinationData.administrationDate ? 
+            new Date(vaccinationData.administrationDate).toISOString().split('T')[0] : '',
+          expirationDate: vaccinationData.expirationDate ? 
+            new Date(vaccinationData.expirationDate).toISOString().split('T')[0] : '',
+          lotNumber: vaccinationData.lotNumber || '',
+          administeredBy: vaccinationData.administeredBy || '',
+          location: vaccinationData.location || '',
+          notes: vaccinationData.notes || ''
         });
       } catch (err) {
         console.error('Error fetching data:', err);
@@ -191,27 +120,21 @@ export default function EditVaccination() {
     setIsSaving(true);
 
     try {
-      // Prepare health record data with structured notes
-      const structuredNotes = [
-        formData.notes || '', // User's custom notes first
-        formData.vaccineType ? `Vaccine Type: ${formData.vaccineType}` : '',
-        formData.lotNumber ? `Lot Number: ${formData.lotNumber}` : 'Lot Number: N/A',
-        formData.administeredBy ? `Administered By: ${formData.administeredBy}` : 'Administered By: N/A',
-        formData.location ? `Location: ${formData.location}` : 'Location: N/A',
-        formData.expirationDate ? `Expiration Date: ${formData.expirationDate}` : ''
-      ].filter(Boolean).join('\n');
-
-      const healthRecordData = {
-        recordType: 'VACCINATION',
-        description: formData.vaccineName || formData.vaccineType,
-        recordDate: new Date(formData.administrationDate).toISOString(),
-        notes: structuredNotes,
-        // Keep existing veterinarian ID if available
-        veterinarianId: vaccination.veterinarianId
+      // Prepare vaccination record data
+      const vaccinationData = {
+        vaccineName: formData.vaccineName,
+        vaccineType: formData.vaccineType,
+        administrationDate: new Date(formData.administrationDate).toISOString(),
+        expirationDate: formData.expirationDate ? new Date(formData.expirationDate).toISOString() : null,
+        lotNumber: formData.lotNumber || '',
+        administeredBy: formData.administeredBy || '',
+        location: formData.location || '',
+        notes: formData.notes || '',
+        attachments: vaccination.attachments || '' // Keep existing attachments
       };
 
-      // Call API to update health record
-      await updateHealthRecord(vaccinationId, healthRecordData);
+      // Call API to update vaccination record
+      await updateVaccination(vaccinationId, vaccinationData);
 
       // Redirect back to pet details page
       router.push(`/pets/${petId}?tab=vaccinations`);

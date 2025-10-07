@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '../../../../../contexts/AuthContext';
 import { getPetById } from '../../../../../services/petService';
-import { createHealthRecord } from '../../../../../services/healthRecordService';
+import { createVaccination } from '../../../../../services/vaccinationService';
 import Navbar from '../../../../../components/Navbar';
 import FeatureErrorBoundary from '../../../../../components/FeatureErrorBoundary';
 import ProtectedRoute from '../../../../../components/ProtectedRoute';
@@ -106,22 +106,22 @@ export default function AddVaccination() {
     setIsSaving(true);
 
     try {
-      // Prepare health record data
-      const healthRecordData = {
+      // Prepare vaccination record data
+      const vaccinationData = {
         petId: parseInt(petId),
-        recordType: 'VACCINATION',
-        description: formData.vaccineName || formData.vaccineType,
-        recordDate: new Date(formData.administrationDate).toISOString(),
-        notes: formData.notes || `Vaccine Type: ${formData.vaccineType}\n` +
-               `Lot Number: ${formData.lotNumber || 'N/A'}\n` +
-               `Administered By: ${formData.administeredBy || 'N/A'}\n` +
-               `Location: ${formData.location || 'N/A'}` +
-               (formData.expirationDate ? `\nExpiration Date: ${formData.expirationDate}` : ''),
-        veterinarianId: null // Will be set by the backend based on user role
+        vaccineName: formData.vaccineName,
+        vaccineType: formData.vaccineType,
+        administrationDate: new Date(formData.administrationDate).toISOString(),
+        expirationDate: formData.expirationDate ? new Date(formData.expirationDate).toISOString() : null,
+        lotNumber: formData.lotNumber || '',
+        administeredBy: formData.administeredBy || '',
+        location: formData.location || '',
+        notes: formData.notes || '',
+        attachments: '' // For future file support
       };
 
-      // Call API to create health record
-      const newRecord = await createHealthRecord(healthRecordData);
+      // Call API to create vaccination record
+      const newRecord = await createVaccination(vaccinationData);
 
       // Redirect back to pet details page
       router.push(`/pets/${petId}?tab=vaccinations`);

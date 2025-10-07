@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
-import { getPetHealthRecords, deleteHealthRecord } from '../../services/healthRecordService';
+import { getPetVaccinations, deleteVaccination } from '../../services/vaccinationService';
 import { format } from 'date-fns';
 import { Card, Flex, Text, Box, Button, IconButton, Badge, Grid, Heading } from '@radix-ui/themes';
 import { FiEdit2, FiTrash2, FiCalendar, FiUser, FiMapPin } from 'react-icons/fi';
@@ -26,12 +26,7 @@ const VaccinationsList = ({ petId, onUpdate }) => {
       setIsLoading(true);
       setError('');
       
-      const healthRecords = await getPetHealthRecords(petId);
-      
-      // Filter for vaccination records only
-      const vaccinationRecords = healthRecords.filter(
-        record => record.recordType.toLowerCase() === 'vaccination'
-      );
+      const vaccinationRecords = await getPetVaccinations(petId);
       
       setVaccinations(vaccinationRecords);
     } catch (err) {
@@ -54,7 +49,7 @@ const VaccinationsList = ({ petId, onUpdate }) => {
 
     if (confirmed) {
       try {
-        await deleteHealthRecord(vaccinationId);
+        await deleteVaccination(vaccinationId);
         
         // Refresh the vaccinations list
         await fetchVaccinations();
@@ -105,57 +100,7 @@ const VaccinationsList = ({ petId, onUpdate }) => {
     }
   };
 
-  // Parse structured vaccination notes to extract individual fields
-  const parseVaccinationNotes = (notes) => {
-    const parsed = {
-      vaccineType: '',
-      lotNumber: '',
-      administeredBy: '',
-      location: '',
-      expirationDate: '',
-      notes: notes || ''
-    };
 
-    if (notes) {
-      const lines = notes.split('\n');
-      lines.forEach(line => {
-        if (line.startsWith('Vaccine Type:')) {
-          parsed.vaccineType = line.replace('Vaccine Type:', '').trim();
-        } else if (line.startsWith('Lot Number:')) {
-          parsed.lotNumber = line.replace('Lot Number:', '').trim();
-          if (parsed.lotNumber === 'N/A') parsed.lotNumber = '';
-        } else if (line.startsWith('Administered By:')) {
-          parsed.administeredBy = line.replace('Administered By:', '').trim();
-          if (parsed.administeredBy === 'N/A') parsed.administeredBy = '';
-        } else if (line.startsWith('Location:')) {
-          parsed.location = line.replace('Location:', '').trim();
-          if (parsed.location === 'N/A') parsed.location = '';
-        } else if (line.startsWith('Expiration Date:')) {
-          const dateStr = line.replace('Expiration Date:', '').trim();
-          if (dateStr && dateStr !== 'N/A') {
-            parsed.expirationDate = dateStr;
-          }
-        }
-      });
-
-      // Remove structured lines from notes to get clean notes
-      const cleanNotes = notes
-        .split('\n')
-        .filter(line => 
-          !line.startsWith('Vaccine Type:') &&
-          !line.startsWith('Lot Number:') &&
-          !line.startsWith('Administered By:') &&
-          !line.startsWith('Location:') &&
-          !line.startsWith('Expiration Date:')
-        )
-        .join('\n')
-        .trim();
-      
-      parsed.notes = cleanNotes || '';
-    }
-
-    return parsed;
-  };
 
   if (isLoading) {
     return <Text>Loading vaccination records...</Text>;
@@ -219,8 +164,6 @@ const VaccinationsList = ({ petId, onUpdate }) => {
       )}
       
       {vaccinations.map((vaccination) => {
-        const parsedData = parseVaccinationNotes(vaccination.notes);
-        
         return (
         <Card key={vaccination.id} variant="outline">
           <Flex gap="3" p="4" align="start">
@@ -228,14 +171,14 @@ const VaccinationsList = ({ petId, onUpdate }) => {
               {/* Vaccination name and type */}
               <Flex justify="between" align="start" mb="2">
                 <Box>
-                  <Heading size="3" mb="1">{vaccination.description}</Heading>
+                  <Heading size="3" mb="1">{vaccination.vaccineName}</Heading>
                   <Flex gap="2" align="center">
-                    <Badge color={getVaccineTypeBadgeColor(vaccination.description)} size="1">
+                    <Badge color={getVaccineTypeBadgeColor(vaccination.vaccineType)} size="1">
                       Vaccination
                     </Badge>
-                    {parsedData.vaccineType && parsedData.vaccineType !== vaccination.description && (
+                    {vaccination.vaccineType && vaccination.vaccineType !== vaccination.vaccineName && (
                       <Badge color="gray" size="1" variant="soft">
-                        {parsedData.vaccineType}
+                        {vaccination.vaccineType}
                       </Badge>
                     )}
                   </Flex>
@@ -281,42 +224,42 @@ const VaccinationsList = ({ petId, onUpdate }) => {
                     <FiCalendar style={{ display: 'inline', marginRight: '4px' }} />
                     Date Administered: 
                   </Text>
-                  <Text size="2"> {formatDate(vaccination.recordDate)}</Text>
+                  <Text size="2"> {formatDate(vaccination.administrationDate)}</Text>
                 </Box>
                 
-                {parsedData.expirationDate && (
+                {vaccination.expirationDate && (
                   <Box>
                     <Text size="2" weight="bold" color="gray">
                       Expiration Date: 
                     </Text>
-                    <Text size="2"> {parsedData.expirationDate}</Text>
+                    <Text size="2"> {formatDate(vaccination.expirationDate)}</Text>
                   </Box>
                 )}
                 
-                {parsedData.lotNumber && (
+                {vaccination.lotNumber && (
                   <Box>
                     <Text size="2" weight="bold" color="gray">
                       Lot Number: 
                     </Text>
-                    <Text size="2"> {parsedData.lotNumber}</Text>
+                    <Text size="2"> {vaccination.lotNumber}</Text>
                   </Box>
                 )}
                 
-                {parsedData.administeredBy && (
+                {vaccination.administeredBy && (
                   <Box>
                     <Text size="2" weight="bold" color="gray">
                       Administered By: 
                     </Text>
-                    <Text size="2"> {parsedData.administeredBy}</Text>
+                    <Text size="2"> {vaccination.administeredBy}</Text>
                   </Box>
                 )}
                 
-                {parsedData.location && (
+                {vaccination.location && (
                   <Box>
                     <Text size="2" weight="bold" color="gray">
                       Location: 
                     </Text>
-                    <Text size="2"> {parsedData.location}</Text>
+                    <Text size="2"> {vaccination.location}</Text>
                   </Box>
                 )}
                 
@@ -324,7 +267,7 @@ const VaccinationsList = ({ petId, onUpdate }) => {
               </Grid>
 
               {/* User notes if available */}
-              {parsedData.notes && (
+              {vaccination.notes && (
                 <Box mt="3" p="3" style={{ 
                   backgroundColor: 'var(--gray-2)', 
                   borderRadius: 'var(--radius-2)',
@@ -334,7 +277,7 @@ const VaccinationsList = ({ petId, onUpdate }) => {
                     Notes: 
                   </Text>
                   <Text size="2" style={{ whiteSpace: 'pre-wrap' }}>
-                    {parsedData.notes}
+                    {vaccination.notes}
                   </Text>
                 </Box>
               )}

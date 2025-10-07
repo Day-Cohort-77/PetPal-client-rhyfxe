@@ -57,7 +57,7 @@ export const getMedicationsForPet = async (petId, options = {}) => {
     if (error.message.includes('401')) {
       throw new Error('Authentication required. Please log in to view medications.');
     } else if (error.message.includes('403')) {
-      throw new Error('Access denied. You can only view medications for your own pets.');
+      throw new Error('Access denied. Insufficient permissions to view medications.');
     } else if (error.message.includes('404')) {
       throw new Error('Pet not found or no medications available for this pet.');
     }
@@ -72,7 +72,7 @@ export const getMedicationById = async (id) => {
     return await get(`/medications/${id}`);
   } catch (error) {
     if (error.message.includes('403')) {
-      throw new Error('Access denied. You can only view medications for your own pets.');
+      throw new Error('Access denied. Insufficient permissions to view medication.');
     } else if (error.message.includes('404')) {
       throw new Error('Medication not found.');
     }

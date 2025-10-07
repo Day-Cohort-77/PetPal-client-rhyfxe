@@ -14,6 +14,7 @@ import { Container, Grid, Badge, Heading, Text, Flex, Card, Button, Box, Tabs, A
 import { FiEdit2, FiTrash2, FiCalendar } from 'react-icons/fi';
 const Behavior = dynamic(() => import('./behavior/page'), { ssr: false });
 import dynamic from 'next/dynamic';
+import VaccinationsList from '../../../components/vaccinations/VaccinationsList';
 
 export default function PetDetails() {
   const { user, isAdmin, isVeterinarian } = useAuth();
@@ -375,14 +376,13 @@ export default function PetDetails() {
                         )}
                       </Flex>
 
-                      {/* Vaccinations are viewable by all users, but only manageable by vets/admins */}
-                      <Text>
-                        No vaccinations found. 
-                        {canManageMedications ? ' Add a vaccination record to get started.' : ' Vaccination records from your veterinarian will appear here.'}
-                      </Text>
-                      
-                      {/* TODO: Add vaccinations list here - viewable by all users */}
-                      {/* Each vaccination should have edit/delete buttons only visible to vets/admins */}
+                      <VaccinationsList 
+                        petId={petId} 
+                        onUpdate={() => {
+                          // Refresh the page data if needed
+                          console.log('Vaccination list updated');
+                        }}
+                      />
                     </Flex>
                   </Card>
                 </Tabs.Content>

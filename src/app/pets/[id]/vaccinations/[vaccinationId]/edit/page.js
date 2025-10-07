@@ -2,28 +2,30 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { useAuth } from '../../../../../contexts/AuthContext';
-import { getPetById } from '../../../../../services/petService';
-import { createVaccination } from '../../../../../services/vaccinationService';
-import Navbar from '../../../../../components/Navbar';
-import FeatureErrorBoundary from '../../../../../components/FeatureErrorBoundary';
-import ProtectedRoute from '../../../../../components/ProtectedRoute';
+import { useAuth } from '../../../../../../contexts/AuthContext';
+import { getPetById } from '../../../../../../services/petService';
+import { getVaccinationById, updateVaccination } from '../../../../../../services/vaccinationService';
+import Navbar from '../../../../../../components/Navbar';
+import FeatureErrorBoundary from '../../../../../../components/FeatureErrorBoundary';
+import ProtectedRoute from '../../../../../../components/ProtectedRoute';
 import { Container, Heading, Text, Flex, Card, TextField, Button, Box, Grid, Select, TextArea } from '@radix-ui/themes';
 
-export default function AddVaccination() {
+export default function EditVaccination() {
   const { user, isAdmin, isVeterinarian } = useAuth();
   const router = useRouter();
   const params = useParams();
   const petId = params.id;
+  const vaccinationId = params.vaccinationId;
 
   // Check if user has vaccination management permissions
   const canManageVaccinations = isAdmin() || isVeterinarian();
 
   const [pet, setPet] = useState(null);
+  const [vaccination, setVaccination] = useState(null);
   const [formData, setFormData] = useState({
     vaccineName: '',
     vaccineType: '',
-    administrationDate: new Date().toISOString().split('T')[0],
+    administrationDate: '',
     expirationDate: '',
     lotNumber: '',
     administeredBy: '',
@@ -49,32 +51,51 @@ export default function AddVaccination() {
   // Check permissions first
   useEffect(() => {
     if (user && !canManageVaccinations) {
-      setError('Access denied. Only veterinarians and administrators can add vaccination records.');
+      setError('Access denied. Only veterinarians and administrators can edit vaccination records.');
       router.push(`/pets/${petId}`);
       return;
     }
   }, [user, canManageVaccinations, router, petId]);
 
-  // Check if user is authenticated and fetch pet data
+  // Fetch pet and vaccination data
   useEffect(() => {
-    const fetchPet = async () => {
+    const fetchData = async () => {
       if (!canManageVaccinations) return; // Don't fetch if no permissions
 
       try {
-        const petData = await getPetById(petId);
+        const [petData, vaccinationData] = await Promise.all([
+          getPetById(petId),
+          getVaccinationById(vaccinationId)
+        ]);
+
         setPet(petData);
+        setVaccination(vaccinationData);
+
+        // Populate form with existing vaccination record data
+        setFormData({
+          vaccineName: vaccinationData.vaccineName || '',
+          vaccineType: vaccinationData.vaccineType || '',
+          administrationDate: vaccinationData.administrationDate ? 
+            new Date(vaccinationData.administrationDate).toISOString().split('T')[0] : '',
+          expirationDate: vaccinationData.expirationDate ? 
+            new Date(vaccinationData.expirationDate).toISOString().split('T')[0] : '',
+          lotNumber: vaccinationData.lotNumber || '',
+          administeredBy: vaccinationData.administeredBy || '',
+          location: vaccinationData.location || '',
+          notes: vaccinationData.notes || ''
+        });
       } catch (err) {
-        console.error('Error fetching pet details:', err);
-        setError('Failed to load pet details. Please try again.');
+        console.error('Error fetching data:', err);
+        setError('Failed to load vaccination details. Please try again.');
       } finally {
         setIsLoading(false);
       }
     };
 
-    if (petId) {
-      fetchPet();
+    if (petId && vaccinationId) {
+      fetchData();
     }
-  }, [user, router, petId, canManageVaccinations]);
+  }, [petId, vaccinationId, canManageVaccinations]);
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -91,14 +112,7 @@ export default function AddVaccination() {
     }));
   };
 
-  const handleDocumentChange = (e) => {
-    const files = Array.from(e.target.files);
-    setDocuments(prev => [...prev, ...files]);
-  };
 
-  const removeDocument = (index) => {
-    setDocuments(prev => prev.filter((_, i) => i !== index));
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -108,7 +122,6 @@ export default function AddVaccination() {
     try {
       // Prepare vaccination record data
       const vaccinationData = {
-        petId: parseInt(petId),
         vaccineName: formData.vaccineName,
         vaccineType: formData.vaccineType,
         administrationDate: new Date(formData.administrationDate).toISOString(),
@@ -117,25 +130,25 @@ export default function AddVaccination() {
         administeredBy: formData.administeredBy || '',
         location: formData.location || '',
         notes: formData.notes || '',
-        attachments: '' // For future file support
+        attachments: vaccination.attachments || '' // Keep existing attachments
       };
 
-      // Call API to create vaccination record
-      const newRecord = await createVaccination(vaccinationData);
+      // Call API to update vaccination record
+      await updateVaccination(vaccinationId, vaccinationData);
 
       // Redirect back to pet details page
       router.push(`/pets/${petId}?tab=vaccinations`);
     } catch (err) {
-      console.error('Error adding vaccination:', err);
+      console.error('Error updating vaccination:', err);
       
-      let errorMessage = 'Failed to add vaccination. Please try again.';
+      let errorMessage = 'Failed to update vaccination. Please try again.';
       
       if (err.message.includes('401')) {
         errorMessage = 'Authentication required. Please log in again.';
       } else if (err.message.includes('403')) {
-        errorMessage = 'Access denied. Only veterinarians and administrators can add vaccination records.';
+        errorMessage = 'Access denied. Only veterinarians and administrators can modify vaccination records.';
       } else if (err.message.includes('404')) {
-        errorMessage = 'Pet not found.';
+        errorMessage = 'Vaccination record not found.';
       } else if (err.message.includes('400')) {
         errorMessage = 'Invalid vaccination data. Please check all required fields.';
       }
@@ -150,13 +163,15 @@ export default function AddVaccination() {
     return null;
   }
 
-  const addVaccinationContent = (
+  const editVaccinationContent = (
     <>
       <Navbar />
       <Container size="2" py="9">
         <Card>
           <Flex direction="column" gap="5" p="4">
-            <Heading size="6" align="center">Add Vaccination for {pet?.name || 'Pet'}</Heading>
+            <Heading size="6" align="center">
+              Edit Vaccination for {pet?.name || 'Pet'}
+            </Heading>
 
             {error && (
               <Text color="red" size="2">
@@ -165,7 +180,7 @@ export default function AddVaccination() {
             )}
 
             {isLoading ? (
-              <Text>Loading pet details...</Text>
+              <Text>Loading vaccination details...</Text>
             ) : (
               <form onSubmit={handleSubmit}>
                 <Flex direction="column" gap="4">
@@ -184,15 +199,15 @@ export default function AddVaccination() {
 
                   <Box>
                     <Text as="label" size="2" mb="1" htmlFor="vaccineType">
-                      Vaccine Type
+                      Vaccine Type*
                     </Text>
-                    <Select.Root
+                    <Select.Root 
                       value={formData.vaccineType}
                       onValueChange={(value) => handleSelectChange('vaccineType', value)}
                     >
-                      <Select.Trigger id="vaccineType" placeholder="Select vaccine type" />
+                      <Select.Trigger placeholder="Select vaccine type" />
                       <Select.Content>
-                        {vaccineTypes.map(type => (
+                        {vaccineTypes.map((type) => (
                           <Select.Item key={type.value} value={type.value}>
                             {type.label}
                           </Select.Item>
@@ -217,7 +232,7 @@ export default function AddVaccination() {
 
                     <Box>
                       <Text as="label" size="2" mb="1" htmlFor="expirationDate">
-                        Expiration/Due Date
+                        Expiration Date
                       </Text>
                       <TextField.Root
                         id="expirationDate"
@@ -276,20 +291,25 @@ export default function AddVaccination() {
                       id="notes"
                       value={formData.notes}
                       onChange={handleChange}
-                      placeholder="Enter any additional notes"
+                      placeholder="Enter any additional notes about this vaccination"
+                      rows={3}
                     />
                   </Box>
 
-                  <Flex gap="3" mt="4">
-                    <Button type="submit" disabled={isSaving}>
-                      {isSaving ? 'Saving...' : 'Save Vaccination'}
-                    </Button>
+                  <Flex gap="3" justify="end">
                     <Button
                       type="button"
                       variant="soft"
-                      onClick={() => router.push(`/pets/${petId}`)}
+                      color="gray"
+                      onClick={() => router.push(`/pets/${petId}?tab=vaccinations`)}
                     >
                       Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={isSaving}
+                    >
+                      {isSaving ? 'Saving...' : 'Update Vaccination'}
                     </Button>
                   </Flex>
                 </Flex>
@@ -302,10 +322,10 @@ export default function AddVaccination() {
   );
 
   return (
-    <ProtectedRoute>
-      <FeatureErrorBoundary featureName="AddVaccination">
-        {addVaccinationContent}
-      </FeatureErrorBoundary>
-    </ProtectedRoute>
+    <FeatureErrorBoundary>
+      <ProtectedRoute>
+        {editVaccinationContent}
+      </ProtectedRoute>
+    </FeatureErrorBoundary>
   );
 }

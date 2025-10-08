@@ -125,3 +125,140 @@ export const deleteMedication = async (id) => {
     throw error;
   }
 };
+
+// Set medication reminders
+export const setReminders = async (reminderData) => {
+  try {
+    return await post('/medications/reminders', reminderData);
+  } catch (error) {
+    console.error('Error setting medication reminders:', error);
+    if (error.message.includes('401')) {
+      throw new Error('Authentication required. Please log in.');
+    } else if (error.message.includes('403')) {
+      throw new Error('Access denied. You can only set reminders for your own pets.');
+    }
+    throw error;
+  }
+};
+
+// Get active reminders for a user
+export const getActiveReminders = async (userId) => {
+  try {
+    return await get(`/medications/reminders/active/${userId}`);
+  } catch (error) {
+    console.error('Error fetching active reminders:', error);
+    if (error.message.includes('401')) {
+      throw new Error('Authentication required. Please log in.');
+    }
+    throw error;
+  }
+};
+
+// Log medication administration
+export const logAdministration = async (logData) => {
+  try {
+    return await post('/api/medication-reminders/log', logData);
+  } catch (error) {
+    console.error('Error logging medication administration:', error);
+    if (error.message.includes('401')) {
+      throw new Error('Authentication required. Please log in.');
+    } else if (error.message.includes('403')) {
+      throw new Error('Access denied. You can only log medications for your own pets.');
+    }
+    throw error;
+  }
+};
+
+// Get medication history
+export const getMedicationHistory = async (petId, medicationId) => {
+  try {
+    return await get(`/medications/history/${petId}/${medicationId}`);
+  } catch (error) {
+    console.error('Error fetching medication history:', error);
+    if (error.message.includes('401')) {
+      throw new Error('Authentication required. Please log in.');
+    } else if (error.message.includes('403')) {
+      throw new Error('Access denied. You can only view history for your own pets.');
+    }
+    throw error;
+  }
+};
+
+// Get active reminders for a specific pet
+export const getActiveRemindersForPet = async (petId) => {
+  try {
+    // Use the new backend endpoint for pet-specific reminders
+    const reminders = await get(`/medications/reminders/pet/${petId}`);
+    
+    // Transform the backend data to match our frontend expectations
+    return reminders.map(reminder => ({
+      id: reminder.id,
+      medicationId: reminder.medicationId,
+      petId: reminder.petId,
+      medicationName: reminder.medicationName,
+      dosage: reminder.dosage,
+      time: reminder.time,
+      scheduledFor: new Date(reminder.scheduledFor),
+      status: reminder.status,
+      isOverdue: reminder.isOverdue,
+      notificationMethods: reminder.notificationMethods
+    }));
+  } catch (error) {
+    console.error('Error fetching pet reminders:', error);
+    if (error.message.includes('401')) {
+      throw new Error('Authentication required. Please log in.');
+    } else if (error.message.includes('403')) {
+      throw new Error('Access denied. You can only view reminders for your own pets.');
+    }
+    throw error;
+  }
+};
+
+// Get today's medication schedule for a pet
+export const getTodaysScheduleForPet = async (petId) => {
+  try {
+    console.log(`[getTodaysScheduleForPet] Called with petId: ${petId}`);
+    const reminders = await getActiveRemindersForPet(petId);
+    console.log(`[getTodaysScheduleForPet] Got ${reminders.length} reminders:`, reminders);
+    
+    const now = new Date();
+    const today = now.toDateString();
+    console.log(`[getTodaysScheduleForPet] Filtering for today: ${today}`);
+    
+    // Filter for today only and sort by time
+    const todaysReminders = reminders
+      .filter(reminder => reminder.scheduledFor.toDateString() === today)
+      .sort((a, b) => a.scheduledFor - b.scheduledFor);
+
+    console.log(`[getTodaysScheduleForPet] Today's reminders: ${todaysReminders.length}`, todaysReminders);
+    return todaysReminders;
+  } catch (error) {
+    console.error('Error fetching today\'s schedule:', error);
+    throw error;
+  }
+};
+
+// Helper function to generate reminder times from frequency
+const generateReminderTimes = (frequency) => {
+  // Parse common frequency patterns and generate times
+  const freq = frequency.toLowerCase();
+  
+  if (freq.includes('once daily') || freq.includes('1x daily') || freq.includes('daily')) {
+    return ['08:00'];
+  } else if (freq.includes('twice daily') || freq.includes('2x daily') || freq.includes('bid')) {
+    return ['08:00', '20:00'];
+  } else if (freq.includes('three times') || freq.includes('3x daily') || freq.includes('tid')) {
+    return ['08:00', '14:00', '20:00'];
+  } else if (freq.includes('four times') || freq.includes('4x daily') || freq.includes('qid')) {
+    return ['08:00', '12:00', '16:00', '20:00'];
+  } else if (freq.includes('every 8 hours')) {
+    return ['08:00', '16:00', '00:00'];
+  } else if (freq.includes('every 6 hours')) {
+    return ['06:00', '12:00', '18:00', '00:00'];
+  } else if (freq.includes('every 4 hours')) {
+    return ['06:00', '10:00', '14:00', '18:00', '22:00'];
+  } else {
+    // Default to once daily for unknown patterns
+    return ['08:00'];
+  }
+};

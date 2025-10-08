@@ -1,0 +1,1061 @@
+diff --git a/src/app/pets/[id]/page.js b/src/app/pets/[id]/page.js
+index 6c154b3..dbaa630 100644
+--- a/src/app/pets/[id]/page.js
++++ b/src/app/pets/[id]/page.js
+@@ -14,6 +14,7 @@ import { Container, Grid, Badge, Heading, Text, Flex, Card, Button, Box, Tabs, A
+ import { FiEdit2, FiTrash2, FiCalendar } from 'react-icons/fi';
+ const Behavior = dynamic(() => import('./behavior/page'), { ssr: false });
+ import dynamic from 'next/dynamic';
++import VaccinationsList from '../../../components/vaccinations/VaccinationsList';
+ 
+ export default function PetDetails() {
+   const { user, isAdmin, isVeterinarian } = useAuth();
+@@ -375,14 +376,13 @@ export default function PetDetails() {
+                         )}
+                       </Flex>
+ 
+-                      {/* Vaccinations are viewable by all users, but only manageable by vets/admins */}
+-                      <Text>
+-                        No vaccinations found. 
+-                        {canManageMedications ? ' Add a vaccination record to get started.' : ' Vaccination records from your veterinarian will appear here.'}
+-                      </Text>
+-                      
+-                      {/* TODO: Add vaccinations list here - viewable by all users */}
+-                      {/* Each vaccination should have edit/delete buttons only visible to vets/admins */}
++                      <VaccinationsList 
++                        petId={petId} 
++                        onUpdate={() => {
++                          // Refresh the page data if needed
++                          console.log('Vaccination list updated');
++                        }}
++                      />
+                     </Flex>
+                   </Card>
+                 </Tabs.Content>
+diff --git a/src/app/pets/[id]/vaccinations/[vaccinationId]/edit/page.js b/src/app/pets/[id]/vaccinations/[vaccinationId]/edit/page.js
+new file mode 100644
+index 0000000..3f28e54
+--- /dev/null
++++ b/src/app/pets/[id]/vaccinations/[vaccinationId]/edit/page.js
+@@ -0,0 +1,331 @@
++'use client';
++
++import { useState, useEffect } from 'react';
++import { useRouter, useParams } from 'next/navigation';
++import { useAuth } from '../../../../../../contexts/AuthContext';
++import { getPetById } from '../../../../../../services/petService';
++import { getVaccinationById, updateVaccination } from '../../../../../../services/vaccinationService';
++import Navbar from '../../../../../../components/Navbar';
++import FeatureErrorBoundary from '../../../../../../components/FeatureErrorBoundary';
++import ProtectedRoute from '../../../../../../components/ProtectedRoute';
++import { Container, Heading, Text, Flex, Card, TextField, Button, Box, Grid, Select, TextArea } from '@radix-ui/themes';
++
++export default function EditVaccination() {
++  const { user, isAdmin, isVeterinarian } = useAuth();
++  const router = useRouter();
++  const params = useParams();
++  const petId = params.id;
++  const vaccinationId = params.vaccinationId;
++
++  // Check if user has vaccination management permissions
++  const canManageVaccinations = isAdmin() || isVeterinarian();
++
++  const [pet, setPet] = useState(null);
++  const [vaccination, setVaccination] = useState(null);
++  const [formData, setFormData] = useState({
++    vaccineName: '',
++    vaccineType: '',
++    administrationDate: '',
++    expirationDate: '',
++    lotNumber: '',
++    administeredBy: '',
++    location: '',
++    notes: ''
++  });
++  const [error, setError] = useState('');
++  const [isLoading, setIsLoading] = useState(true);
++  const [isSaving, setIsSaving] = useState(false);
++
++  // Common vaccine types for selection
++  const vaccineTypes = [
++    { value: 'RABIES', label: 'Rabies' },
++    { value: 'DISTEMPER', label: 'Distemper' },
++    { value: 'PARVO', label: 'Parvovirus' },
++    { value: 'BORDETELLA', label: 'Bordetella (Kennel Cough)' },
++    { value: 'LEPTOSPIROSIS', label: 'Leptospirosis' },
++    { value: 'FVRCP', label: 'FVRCP (Feline Viral Rhinotracheitis, Calicivirus, Panleukopenia)' },
++    { value: 'FELV', label: 'FeLV (Feline Leukemia Virus)' },
++    { value: 'OTHER', label: 'Other' }
++  ];
++
++  // Check permissions first
++  useEffect(() => {
++    if (user && !canManageVaccinations) {
++      setError('Access denied. Only veterinarians and administrators can edit vaccination records.');
++      router.push(`/pets/${petId}`);
++      return;
++    }
++  }, [user, canManageVaccinations, router, petId]);
++
++  // Fetch pet and vaccination data
++  useEffect(() => {
++    const fetchData = async () => {
++      if (!canManageVaccinations) return; // Don't fetch if no permissions
++
++      try {
++        const [petData, vaccinationData] = await Promise.all([
++          getPetById(petId),
++          getVaccinationById(vaccinationId)
++        ]);
++
++        setPet(petData);
++        setVaccination(vaccinationData);
++
++        // Populate form with existing vaccination record data
++        setFormData({
++          vaccineName: vaccinationData.vaccineName || '',
++          vaccineType: vaccinationData.vaccineType || '',
++          administrationDate: vaccinationData.administrationDate ? 
++            new Date(vaccinationData.administrationDate).toISOString().split('T')[0] : '',
++          expirationDate: vaccinationData.expirationDate ? 
++            new Date(vaccinationData.expirationDate).toISOString().split('T')[0] : '',
++          lotNumber: vaccinationData.lotNumber || '',
++          administeredBy: vaccinationData.administeredBy || '',
++          location: vaccinationData.location || '',
++          notes: vaccinationData.notes || ''
++        });
++      } catch (err) {
++        console.error('Error fetching data:', err);
++        setError('Failed to load vaccination details. Please try again.');
++      } finally {
++        setIsLoading(false);
++      }
++    };
++
++    if (petId && vaccinationId) {
++      fetchData();
++    }
++  }, [petId, vaccinationId, canManageVaccinations]);
++
++  const handleChange = (e) => {
++    const { id, value } = e.target;
++    setFormData(prev => ({
++      ...prev,
++      [id]: value
++    }));
++  };
++
++  const handleSelectChange = (id, value) => {
++    setFormData(prev => ({
++      ...prev,
++      [id]: value
++    }));
++  };
++
++
++
++  const handleSubmit = async (e) => {
++    e.preventDefault();
++    setError('');
++    setIsSaving(true);
++
++    try {
++      // Prepare vaccination record data
++      const vaccinationData = {
++        vaccineName: formData.vaccineName,
++        vaccineType: formData.vaccineType,
++        administrationDate: new Date(formData.administrationDate).toISOString(),
++        expirationDate: formData.expirationDate ? new Date(formData.expirationDate).toISOString() : null,
++        lotNumber: formData.lotNumber || '',
++        administeredBy: formData.administeredBy || '',
++        location: formData.location || '',
++        notes: formData.notes || '',
++        attachments: vaccination.attachments || '' // Keep existing attachments
++      };
++
++      // Call API to update vaccination record
++      await updateVaccination(vaccinationId, vaccinationData);
++
++      // Redirect back to pet details page
++      router.push(`/pets/${petId}?tab=vaccinations`);
++    } catch (err) {
++      console.error('Error updating vaccination:', err);
++      
++      let errorMessage = 'Failed to update vaccination. Please try again.';
++      
++      if (err.message.includes('401')) {
++        errorMessage = 'Authentication required. Please log in again.';
++      } else if (err.message.includes('403')) {
++        errorMessage = 'Access denied. Only veterinarians and administrators can modify vaccination records.';
++      } else if (err.message.includes('404')) {
++        errorMessage = 'Vaccination record not found.';
++      } else if (err.message.includes('400')) {
++        errorMessage = 'Invalid vaccination data. Please check all required fields.';
++      }
++      
++      setError(errorMessage);
++      setIsSaving(false);
++    }
++  };
++
++  // Don't render anything if user doesn't have permissions (will redirect)
++  if (!canManageVaccinations && user) {
++    return null;
++  }
++
++  const editVaccinationContent = (
++    <>
++      <Navbar />
++      <Container size="2" py="9">
++        <Card>
++          <Flex direction="column" gap="5" p="4">
++            <Heading size="6" align="center">
++              Edit Vaccination for {pet?.name || 'Pet'}
++            </Heading>
++
++            {error && (
++              <Text color="red" size="2">
++                {error}
++              </Text>
++            )}
++
++            {isLoading ? (
++              <Text>Loading vaccination details...</Text>
++            ) : (
++              <form onSubmit={handleSubmit}>
++                <Flex direction="column" gap="4">
++                  <Box>
++                    <Text as="label" size="2" mb="1" htmlFor="vaccineName">
++                      Vaccine Name*
++                    </Text>
++                    <TextField.Root
++                      id="vaccineName"
++                      value={formData.vaccineName}
++                      onChange={handleChange}
++                      placeholder="Enter vaccine name"
++                      required
++                    />
++                  </Box>
++
++                  <Box>
++                    <Text as="label" size="2" mb="1" htmlFor="vaccineType">
++                      Vaccine Type*
++                    </Text>
++                    <Select.Root 
++                      value={formData.vaccineType}
++                      onValueChange={(value) => handleSelectChange('vaccineType', value)}
++                    >
++                      <Select.Trigger placeholder="Select vaccine type" />
++                      <Select.Content>
++                        {vaccineTypes.map((type) => (
++                          <Select.Item key={type.value} value={type.value}>
++                            {type.label}
++                          </Select.Item>
++                        ))}
++                      </Select.Content>
++                    </Select.Root>
++                  </Box>
++
++                  <Grid columns="2" gap="4">
++                    <Box>
++                      <Text as="label" size="2" mb="1" htmlFor="administrationDate">
++                        Administration Date*
++                      </Text>
++                      <TextField.Root
++                        id="administrationDate"
++                        type="date"
++                        value={formData.administrationDate}
++                        onChange={handleChange}
++                        required
++                      />
++                    </Box>
++
++                    <Box>
++                      <Text as="label" size="2" mb="1" htmlFor="expirationDate">
++                        Expiration Date
++                      </Text>
++                      <TextField.Root
++                        id="expirationDate"
++                        type="date"
++                        value={formData.expirationDate}
++                        onChange={handleChange}
++                      />
++                    </Box>
++                  </Grid>
++
++                  <Grid columns="2" gap="4">
++                    <Box>
++                      <Text as="label" size="2" mb="1" htmlFor="lotNumber">
++                        Lot Number
++                      </Text>
++                      <TextField.Root
++                        id="lotNumber"
++                        value={formData.lotNumber}
++                        onChange={handleChange}
++                        placeholder="Enter lot number"
++                      />
++                    </Box>
++
++                    <Box>
++                      <Text as="label" size="2" mb="1" htmlFor="administeredBy">
++                        Administered By
++                      </Text>
++                      <TextField.Root
++                        id="administeredBy"
++                        value={formData.administeredBy}
++                        onChange={handleChange}
++                        placeholder="Enter name of administrator"
++                      />
++                    </Box>
++                  </Grid>
++
++                  <Box>
++                    <Text as="label" size="2" mb="1" htmlFor="location">
++                      Location
++                    </Text>
++                    <TextField.Root
++                      id="location"
++                      value={formData.location}
++                      onChange={handleChange}
++                      placeholder="Enter location where administered"
++                    />
++                  </Box>
++
++
++
++                  <Box>
++                    <Text as="label" size="2" mb="1" htmlFor="notes">
++                      Notes
++                    </Text>
++                    <TextArea
++                      id="notes"
++                      value={formData.notes}
++                      onChange={handleChange}
++                      placeholder="Enter any additional notes about this vaccination"
++                      rows={3}
++                    />
++                  </Box>
++
++                  <Flex gap="3" justify="end">
++                    <Button
++                      type="button"
++                      variant="soft"
++                      color="gray"
++                      onClick={() => router.push(`/pets/${petId}?tab=vaccinations`)}
++                    >
++                      Cancel
++                    </Button>
++                    <Button
++                      type="submit"
++                      disabled={isSaving}
++                    >
++                      {isSaving ? 'Saving...' : 'Update Vaccination'}
++                    </Button>
++                  </Flex>
++                </Flex>
++              </form>
++            )}
++          </Flex>
++        </Card>
++      </Container>
++    </>
++  );
++
++  return (
++    <FeatureErrorBoundary>
++      <ProtectedRoute>
++        {editVaccinationContent}
++      </ProtectedRoute>
++    </FeatureErrorBoundary>
++  );
++}
+\ No newline at end of file
+diff --git a/src/app/pets/[id]/vaccinations/add/page.js b/src/app/pets/[id]/vaccinations/add/page.js
+index 1728610..62a14f4 100644
+--- a/src/app/pets/[id]/vaccinations/add/page.js
++++ b/src/app/pets/[id]/vaccinations/add/page.js
+@@ -4,18 +4,21 @@ import { useState, useEffect } from 'react';
+ import { useRouter, useParams } from 'next/navigation';
+ import { useAuth } from '../../../../../contexts/AuthContext';
+ import { getPetById } from '../../../../../services/petService';
+-import { createHealthRecord } from '../../../../../services/healthRecordService';
++import { createVaccination } from '../../../../../services/vaccinationService';
+ import Navbar from '../../../../../components/Navbar';
+ import FeatureErrorBoundary from '../../../../../components/FeatureErrorBoundary';
+ import ProtectedRoute from '../../../../../components/ProtectedRoute';
+ import { Container, Heading, Text, Flex, Card, TextField, Button, Box, Grid, Select, TextArea } from '@radix-ui/themes';
+ 
+ export default function AddVaccination() {
+-  const { user } = useAuth();
++  const { user, isAdmin, isVeterinarian } = useAuth();
+   const router = useRouter();
+   const params = useParams();
+   const petId = params.id;
+ 
++  // Check if user has vaccination management permissions
++  const canManageVaccinations = isAdmin() || isVeterinarian();
++
+   const [pet, setPet] = useState(null);
+   const [formData, setFormData] = useState({
+     vaccineName: '',
+@@ -30,7 +33,6 @@ export default function AddVaccination() {
+   const [error, setError] = useState('');
+   const [isLoading, setIsLoading] = useState(true);
+   const [isSaving, setIsSaving] = useState(false);
+-  const [documents, setDocuments] = useState([]);
+ 
+   // Common vaccine types for selection
+   const vaccineTypes = [
+@@ -44,9 +46,20 @@ export default function AddVaccination() {
+     { value: 'OTHER', label: 'Other' }
+   ];
+ 
++  // Check permissions first
++  useEffect(() => {
++    if (user && !canManageVaccinations) {
++      setError('Access denied. Only veterinarians and administrators can add vaccination records.');
++      router.push(`/pets/${petId}`);
++      return;
++    }
++  }, [user, canManageVaccinations, router, petId]);
++
+   // Check if user is authenticated and fetch pet data
+   useEffect(() => {
+     const fetchPet = async () => {
++      if (!canManageVaccinations) return; // Don't fetch if no permissions
++
+       try {
+         const petData = await getPetById(petId);
+         setPet(petData);
+@@ -61,7 +74,7 @@ export default function AddVaccination() {
+     if (petId) {
+       fetchPet();
+     }
+-  }, [user, router, petId]);
++  }, [user, router, petId, canManageVaccinations]);
+ 
+   const handleChange = (e) => {
+     const { id, value } = e.target;
+@@ -93,28 +106,50 @@ export default function AddVaccination() {
+     setIsSaving(true);
+ 
+     try {
+-      // Prepare health record data
+-      const healthRecordData = {
+-        ...formData,
+-        petId,
+-        recordType: 'VACCINATION',
+-        // Convert dates to ISO format
++      // Prepare vaccination record data
++      const vaccinationData = {
++        petId: parseInt(petId),
++        vaccineName: formData.vaccineName,
++        vaccineType: formData.vaccineType,
+         administrationDate: new Date(formData.administrationDate).toISOString(),
+-        expirationDate: formData.expirationDate ? new Date(formData.expirationDate).toISOString() : null
++        expirationDate: formData.expirationDate ? new Date(formData.expirationDate).toISOString() : null,
++        lotNumber: formData.lotNumber || '',
++        administeredBy: formData.administeredBy || '',
++        location: formData.location || '',
++        notes: formData.notes || '',
++        attachments: '' // For future file support
+       };
+ 
+-      // Call API to create health record
+-      const newRecord = await createHealthRecord(healthRecordData);
++      // Call API to create vaccination record
++      const newRecord = await createVaccination(vaccinationData);
+ 
+       // Redirect back to pet details page
+       router.push(`/pets/${petId}?tab=vaccinations`);
+     } catch (err) {
+       console.error('Error adding vaccination:', err);
+-      setError('Failed to add vaccination. Please try again.');
++      
++      let errorMessage = 'Failed to add vaccination. Please try again.';
++      
++      if (err.message.includes('401')) {
++        errorMessage = 'Authentication required. Please log in again.';
++      } else if (err.message.includes('403')) {
++        errorMessage = 'Access denied. Only veterinarians and administrators can add vaccination records.';
++      } else if (err.message.includes('404')) {
++        errorMessage = 'Pet not found.';
++      } else if (err.message.includes('400')) {
++        errorMessage = 'Invalid vaccination data. Please check all required fields.';
++      }
++      
++      setError(errorMessage);
+       setIsSaving(false);
+     }
+   };
+ 
++  // Don't render anything if user doesn't have permissions (will redirect)
++  if (!canManageVaccinations && user) {
++    return null;
++  }
++
+   const addVaccinationContent = (
+     <>
+       <Navbar />
+@@ -231,45 +266,7 @@ export default function AddVaccination() {
+                     />
+                   </Box>
+ 
+-                  <Box>
+-                    <Text as="label" size="2" mb="1" htmlFor="documents">
+-                      Upload Documents
+-                    </Text>
+-                    <input
+-                      type="file"
+-                      id="documents"
+-                      multiple
+-                      onChange={handleDocumentChange}
+-                      style={{
+-                        width: '100%',
+-                        padding: '8px',
+-                        border: '1px solid var(--gray-6)',
+-                        borderRadius: 'var(--radius-2)'
+-                      }}
+-                    />
+-                    {documents.length > 0 && (
+-                      <Box mt="2">
+-                        <Text size="2" weight="bold">Selected Documents:</Text>
+-                        <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+-                          {documents.map((doc, index) => (
+-                            <li key={index} style={{ marginBottom: '4px' }}>
+-                              <Flex align="center" gap="2">
+-                                <Text size="2">{doc.name}</Text>
+-                                <Button
+-                                  size="1"
+-                                  variant="soft"
+-                                  color="red"
+-                                  onClick={() => removeDocument(index)}
+-                                >
+-                                  Remove
+-                                </Button>
+-                              </Flex>
+-                            </li>
+-                          ))}
+-                        </ul>
+-                      </Box>
+-                    )}
+-                  </Box>
++
+ 
+                   <Box>
+                     <Text as="label" size="2" mb="1" htmlFor="notes">
+diff --git a/src/components/vaccinations/VaccinationsList.js b/src/components/vaccinations/VaccinationsList.js
+new file mode 100644
+index 0000000..ed1f7b8
+--- /dev/null
++++ b/src/components/vaccinations/VaccinationsList.js
+@@ -0,0 +1,303 @@
++'use client';
++
++import { useState, useEffect } from 'react';
++import { useRouter } from 'next/navigation';
++import { useAuth } from '../../contexts/AuthContext';
++import { getPetVaccinations, deleteVaccination } from '../../services/vaccinationService';
++import { format } from 'date-fns';
++import { Card, Flex, Text, Box, Button, IconButton, Badge, Grid, Heading } from '@radix-ui/themes';
++import { FiEdit2, FiTrash2, FiCalendar, FiUser, FiMapPin } from 'react-icons/fi';
++
++const VaccinationsList = ({ petId, onUpdate }) => {
++  const router = useRouter();
++  const { user, isAdmin, isVeterinarian } = useAuth();
++  const canManageVaccinations = isAdmin() || isVeterinarian();
++
++  const [vaccinations, setVaccinations] = useState([]);
++  const [isLoading, setIsLoading] = useState(true);
++  const [error, setError] = useState('');
++
++  useEffect(() => {
++    fetchVaccinations();
++  }, [petId]);
++
++  const fetchVaccinations = async () => {
++    try {
++      setIsLoading(true);
++      setError('');
++      
++      const vaccinationRecords = await getPetVaccinations(petId);
++      
++      setVaccinations(vaccinationRecords);
++    } catch (err) {
++      console.error('Error fetching vaccinations:', err);
++      setError('Failed to load vaccination records.');
++    } finally {
++      setIsLoading(false);
++    }
++  };
++
++  const handleDeleteVaccination = async (vaccinationId) => {
++    if (!canManageVaccinations) {
++      alert('You do not have permission to delete vaccination records. Only veterinarians and administrators can manage vaccination records.');
++      return;
++    }
++
++    const confirmed = window.confirm(
++      'Are you sure you want to delete this vaccination record? This action cannot be undone.'
++    );
++
++    if (confirmed) {
++      try {
++        await deleteVaccination(vaccinationId);
++        
++        // Refresh the vaccinations list
++        await fetchVaccinations();
++        
++        // Notify parent component of update
++        if (onUpdate) {
++          onUpdate();
++        }
++      } catch (err) {
++        console.error('Error deleting vaccination:', err);
++        if (err.message.includes('403') || err.message.includes('Forbidden')) {
++          alert('You do not have permission to delete vaccination records. Only veterinarians and administrators can manage vaccination records.');
++        } else {
++          alert('Failed to delete vaccination record. Please try again.');
++        }
++      }
++    }
++  };
++
++  const getVaccineTypeBadgeColor = (vaccineType) => {
++    const type = vaccineType?.toLowerCase();
++    switch (type) {
++      case 'rabies':
++        return 'red';
++      case 'distemper':
++      case 'dhpp':
++        return 'blue';
++      case 'parvo':
++      case 'parvovirus':
++        return 'orange';
++      case 'bordetella':
++        return 'green';
++      case 'leptospirosis':
++        return 'purple';
++      case 'fvrcp':
++      case 'felv':
++        return 'violet';
++      default:
++        return 'gray';
++    }
++  };
++
++  const formatDate = (dateString) => {
++    try {
++      return format(new Date(dateString), 'MMM dd, yyyy');
++    } catch (err) {
++      return 'Invalid date';
++    }
++  };
++
++
++
++  if (isLoading) {
++    return <Text>Loading vaccination records...</Text>;
++  }
++
++  if (error) {
++    return (
++      <Text color="red" size="2">
++        {error}
++      </Text>
++    );
++  }
++
++  if (vaccinations.length === 0) {
++    return (
++      <Box>
++        <Text>
++          No vaccination records found.{' '}
++          {canManageVaccinations 
++            ? 'Add a vaccination record to get started.' 
++            : 'Vaccination records from your veterinarian will appear here.'}
++        </Text>
++        
++        {!canManageVaccinations && (
++          <Box mt="3" p="4" style={{ 
++            backgroundColor: 'var(--blue-2)', 
++            borderRadius: 'var(--radius-3)',
++            border: '1px solid var(--blue-6)'
++          }}>
++            <Text size="3" weight="medium" color="blue" style={{ display: 'block', marginBottom: '8px' }}>
++              🏥 Veterinarian-Only Records
++            </Text>
++            <Text size="2" color="blue">
++              Vaccination records can only be added, edited, or deleted by veterinarians and administrators. 
++              This ensures the accuracy and authenticity of your pet's medical history. 
++              Contact your veterinary clinic to add vaccination information.
++            </Text>
++          </Box>
++        )}
++      </Box>
++    );
++  }
++
++  return (
++    <Flex direction="column" gap="3">
++      {!canManageVaccinations && (
++        <Box p="4" style={{ 
++          backgroundColor: 'var(--blue-2)', 
++          borderRadius: 'var(--radius-3)',
++          border: '1px solid var(--blue-6)'
++        }}>
++          <Text size="3" weight="medium" color="blue" style={{ display: 'block', marginBottom: '8px' }}>
++            🏥 Veterinarian-Only Records
++          </Text>
++          <Text size="2" color="blue">
++            Vaccination records can only be added, edited, or deleted by veterinarians and administrators. 
++            This ensures the accuracy and authenticity of your pet's medical history. 
++            Contact your veterinary clinic to add or update vaccination information.
++          </Text>
++        </Box>
++      )}
++      
++      {vaccinations.map((vaccination) => {
++        return (
++        <Card key={vaccination.id} variant="outline">
++          <Flex gap="3" p="4" align="start">
++            <Box style={{ flex: 1 }}>
++              {/* Vaccination name and type */}
++              <Flex justify="between" align="start" mb="2">
++                <Box>
++                  <Heading size="3" mb="1">{vaccination.vaccineName}</Heading>
++                  <Flex gap="2" align="center">
++                    <Badge color={getVaccineTypeBadgeColor(vaccination.vaccineType)} size="1">
++                      Vaccination
++                    </Badge>
++                    {vaccination.vaccineType && vaccination.vaccineType !== vaccination.vaccineName && (
++                      <Badge color="gray" size="1" variant="soft">
++                        {vaccination.vaccineType}
++                      </Badge>
++                    )}
++                  </Flex>
++                </Box>
++                
++                {/* Action buttons for vets/admins only */}
++                {canManageVaccinations && (
++                  <Flex gap="2">
++                    <IconButton
++                      size="2"
++                      variant="ghost"
++                      color="blue"
++                      onClick={() => router.push(`/pets/${petId}/vaccinations/${vaccination.id}/edit`)}
++                    >
++                      <FiEdit2 />
++                    </IconButton>
++                    <IconButton
++                      size="2"
++                      variant="ghost"
++                      color="red"
++                      onClick={() => handleDeleteVaccination(vaccination.id)}
++                    >
++                      <FiTrash2 />
++                    </IconButton>
++                  </Flex>
++                )}
++              </Flex>
++              
++              {/* Veterinarian information prominently displayed */}
++              {vaccination.veterinarianName && (
++                <Box mb="3">
++                  <Text size="2" weight="bold" color="green">
++                    <FiUser style={{ display: 'inline', marginRight: '4px' }} />
++                    Administered by: {vaccination.veterinarianName}
++                  </Text>
++                </Box>
++              )}
++              
++              {/* Structured vaccination details */}
++              <Grid columns="2" gap="3" mt="2">
++                <Box>
++                  <Text size="2" weight="bold" color="gray">
++                    <FiCalendar style={{ display: 'inline', marginRight: '4px' }} />
++                    Date Administered: 
++                  </Text>
++                  <Text size="2"> {formatDate(vaccination.administrationDate)}</Text>
++                </Box>
++                
++                {vaccination.expirationDate && (
++                  <Box>
++                    <Text size="2" weight="bold" color="gray">
++                      Expiration Date: 
++                    </Text>
++                    <Text size="2"> {formatDate(vaccination.expirationDate)}</Text>
++                  </Box>
++                )}
++                
++                {vaccination.lotNumber && (
++                  <Box>
++                    <Text size="2" weight="bold" color="gray">
++                      Lot Number: 
++                    </Text>
++                    <Text size="2"> {vaccination.lotNumber}</Text>
++                  </Box>
++                )}
++                
++                {vaccination.administeredBy && (
++                  <Box>
++                    <Text size="2" weight="bold" color="gray">
++                      Administered By: 
++                    </Text>
++                    <Text size="2"> {vaccination.administeredBy}</Text>
++                  </Box>
++                )}
++                
++                {vaccination.location && (
++                  <Box>
++                    <Text size="2" weight="bold" color="gray">
++                      Location: 
++                    </Text>
++                    <Text size="2"> {vaccination.location}</Text>
++                  </Box>
++                )}
++                
++
++              </Grid>
++
++              {/* User notes if available */}
++              {vaccination.notes && (
++                <Box mt="3" p="3" style={{ 
++                  backgroundColor: 'var(--gray-2)', 
++                  borderRadius: 'var(--radius-2)',
++                  border: '1px solid var(--gray-4)'
++                }}>
++                  <Text size="2" weight="bold" color="gray" mb="1" style={{ display: 'block' }}>
++                    Notes: 
++                  </Text>
++                  <Text size="2" style={{ whiteSpace: 'pre-wrap' }}>
++                    {vaccination.notes}
++                  </Text>
++                </Box>
++              )}
++
++              {/* Additional vaccination details if available */}
++              <Box mt="2">
++                <Text size="2" color="gray">
++                  Added on {formatDate(vaccination.createdAt)}
++                  {vaccination.updatedAt !== vaccination.createdAt && 
++                    `, updated on ${formatDate(vaccination.updatedAt)}`
++                  }
++                </Text>
++              </Box>
++            </Box>
++          </Flex>
++        </Card>
++        );
++      })}
++    </Flex>
++  );
++};
++
++export default VaccinationsList;
+\ No newline at end of file
+diff --git a/src/services/healthRecordService.js b/src/services/healthRecordService.js
+index cc5e3ff..74eee96 100644
+--- a/src/services/healthRecordService.js
++++ b/src/services/healthRecordService.js
+@@ -2,27 +2,76 @@ import { get, post, put, del } from './apiService';
+ 
+ // Get all health records for a pet
+ export const getPetHealthRecords = async (petId) => {
+-  return get(`/pets/${petId}/health-records`);
++  try {
++    return await get(`/pets/${petId}/healthrecords`);
++  } catch (error) {
++    if (error.message.includes('403')) {
++      throw new Error('Access denied. You can only view health records for your own pets.');
++    } else if (error.message.includes('404')) {
++      throw new Error('Pet not found.');
++    }
++    throw error;
++  }
+ };
+ 
+ // Get a specific health record by ID
+ export const getHealthRecordById = async (recordId) => {
+-  return get(`/health-records/${recordId}`);
++  try {
++    return await get(`/healthrecords/${recordId}`);
++  } catch (error) {
++    if (error.message.includes('403')) {
++      throw new Error('Access denied. You can only view health records for your own pets.');
++    } else if (error.message.includes('404')) {
++      throw new Error('Health record not found.');
++    }
++    throw error;
++  }
+ };
+ 
+-// Create a new health record
++// Create a new health record (Veterinarian/Admin only for vaccinations)
+ export const createHealthRecord = async (recordData) => {
+-  return post('/health-records', recordData);
++  try {
++    return await post('/healthrecords', recordData);
++  } catch (error) {
++    if (error.message.includes('401')) {
++      throw new Error('Authentication required. Please log in.');
++    } else if (error.message.includes('403')) {
++      throw new Error('Access denied. Only veterinarians and administrators can add health records.');
++    }
++    throw error;
++  }
+ };
+ 
+-// Update a health record
++// Update a health record (Veterinarian/Admin only for vaccinations)
+ export const updateHealthRecord = async (recordId, recordData) => {
+-  return put(`/health-records/${recordId}`, recordData);
++  try {
++    return await put(`/healthrecords/${recordId}`, recordData);
++  } catch (error) {
++    if (error.message.includes('401')) {
++      throw new Error('Authentication required. Please log in.');
++    } else if (error.message.includes('403')) {
++      throw new Error('Access denied. Only veterinarians and administrators can modify health records.');
++    } else if (error.message.includes('404')) {
++      throw new Error('Health record not found.');
++    }
++    throw error;
++  }
+ };
+ 
+-// Delete a health record
++// Delete a health record (Veterinarian/Admin only for vaccinations)
+ export const deleteHealthRecord = async (recordId) => {
+-  return del(`/health-records/${recordId}`);
++  try {
++    return await del(`/healthrecords/${recordId}`);
++  } catch (error) {
++    if (error.message.includes('401')) {
++      throw new Error('Authentication required. Please log in.');
++    } else if (error.message.includes('403')) {
++      throw new Error('Access denied. Only veterinarians and administrators can remove health records.');
++    } else if (error.message.includes('404')) {
++      throw new Error('Health record not found.');
++    }
++    throw error;
++  }
+ };
+ 
+ export default {
+diff --git a/src/services/medicationService.js b/src/services/medicationService.js
+index 03f0965..8059733 100644
+--- a/src/services/medicationService.js
++++ b/src/services/medicationService.js
+@@ -57,7 +57,7 @@ export const getMedicationsForPet = async (petId, options = {}) => {
+     if (error.message.includes('401')) {
+       throw new Error('Authentication required. Please log in to view medications.');
+     } else if (error.message.includes('403')) {
+-      throw new Error('Access denied. You can only view medications for your own pets.');
++      throw new Error('Access denied. Insufficient permissions to view medications.');
+     } else if (error.message.includes('404')) {
+       throw new Error('Pet not found or no medications available for this pet.');
+     }
+@@ -72,7 +72,7 @@ export const getMedicationById = async (id) => {
+     return await get(`/medications/${id}`);
+   } catch (error) {
+     if (error.message.includes('403')) {
+-      throw new Error('Access denied. You can only view medications for your own pets.');
++      throw new Error('Access denied. Insufficient permissions to view medication.');
+     } else if (error.message.includes('404')) {
+       throw new Error('Medication not found.');
+     }
+diff --git a/src/services/vaccinationService.js b/src/services/vaccinationService.js
+new file mode 100644
+index 0000000..cc4389d
+--- /dev/null
++++ b/src/services/vaccinationService.js
+@@ -0,0 +1,87 @@
++import { get, post, put, del } from './apiService';
++
++// Get all vaccination records for a pet
++export const getPetVaccinations = async (petId) => {
++  try {
++    return await get(`/vaccinations/pet/${petId}`);
++  } catch (error) {
++    if (error.message.includes('403')) {
++      throw new Error('Access denied. You can only view vaccination records for your own pets.');
++    } else if (error.message.includes('404')) {
++      throw new Error('Pet not found.');
++    }
++    throw error;
++  }
++};
++
++// Get a specific vaccination record by ID
++export const getVaccinationById = async (vaccinationId) => {
++  try {
++    return await get(`/vaccinations/${vaccinationId}`);
++  } catch (error) {
++    if (error.message.includes('403')) {
++      throw new Error('Access denied. You can only view vaccination records for your own pets.');
++    } else if (error.message.includes('404')) {
++      throw new Error('Vaccination record not found.');
++    }
++    throw error;
++  }
++};
++
++// Create a new vaccination record (Veterinarian/Admin only)
++export const createVaccination = async (vaccinationData) => {
++  try {
++    return await post('/vaccinations', vaccinationData);
++  } catch (error) {
++    if (error.message.includes('401')) {
++      throw new Error('Authentication required. Please log in.');
++    } else if (error.message.includes('403')) {
++      throw new Error('Access denied. Only veterinarians and administrators can add vaccination records.');
++    } else if (error.message.includes('400')) {
++      throw new Error('Invalid vaccination data. Please check all required fields.');
++    }
++    throw error;
++  }
++};
++
++// Update a vaccination record (Veterinarian/Admin only)
++export const updateVaccination = async (vaccinationId, vaccinationData) => {
++  try {
++    return await put(`/vaccinations/${vaccinationId}`, vaccinationData);
++  } catch (error) {
++    if (error.message.includes('401')) {
++      throw new Error('Authentication required. Please log in.');
++    } else if (error.message.includes('403')) {
++      throw new Error('Access denied. Only veterinarians and administrators can modify vaccination records.');
++    } else if (error.message.includes('404')) {
++      throw new Error('Vaccination record not found.');
++    } else if (error.message.includes('400')) {
++      throw new Error('Invalid vaccination data. Please check all required fields.');
++    }
++    throw error;
++  }
++};
++
++// Delete a vaccination record (Veterinarian/Admin only)
++export const deleteVaccination = async (vaccinationId) => {
++  try {
++    return await del(`/vaccinations/${vaccinationId}`);
++  } catch (error) {
++    if (error.message.includes('401')) {
++      throw new Error('Authentication required. Please log in.');
++    } else if (error.message.includes('403')) {
++      throw new Error('Access denied. Only veterinarians and administrators can remove vaccination records.');
++    } else if (error.message.includes('404')) {
++      throw new Error('Vaccination record not found.');
++    }
++    throw error;
++  }
++};
++
++export default {
++  getPetVaccinations,
++  getVaccinationById,
++  createVaccination,
++  updateVaccination,
++  deleteVaccination,
++};
+\ No newline at end of file

@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '../../../../../contexts/AuthContext';
 import { getPetById } from '../../../../../services/petService';
 import { createMedication } from '../../../../../services/medicationService';
+import { MedicationReminderSettings } from '../../../../../components/medications';
 import ProtectedRoute from '../../../../../components/ProtectedRoute';
 import Navbar from '../../../../../components/Navbar';
 import FeatureErrorBoundary from '../../../../../components/FeatureErrorBoundary';
@@ -38,6 +39,8 @@ export default function AddMedication() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [createdMedicationId, setCreatedMedicationId] = useState(null);
+  const [showReminderSettings, setShowReminderSettings] = useState(false);
 
   // Common dosage units for selection with examples
   const dosageUnits = [
@@ -134,6 +137,13 @@ export default function AddMedication() {
     }));
   };
 
+  // Handle reminder settings save
+  const handleReminderSave = (reminders) => {
+    console.log('Reminders saved:', reminders);
+    // Redirect to pet details page after reminders are set
+    router.push(`/pets/${petId}?tab=medications`);
+  };
+
   // Client-side validation (matching backend required fields exactly)
   const validateForm = () => {
     const errors = [];
@@ -228,8 +238,16 @@ export default function AddMedication() {
 
       console.log('Medication created successfully:', newRecord);
       
-      // Redirect back to pet details page
-      router.push(`/pets/${petId}?tab=medications`);
+      // Store the created medication ID for reminder setup
+      setCreatedMedicationId(newRecord.id);
+      
+      // Show reminder settings if user had reminders enabled
+      if (formData.reminders) {
+        setShowReminderSettings(true);
+      } else {
+        // Redirect back to pet details page if no reminders
+        router.push(`/pets/${petId}?tab=medications`);
+      }
     } catch (err) {
       console.error('Error adding medication:', err);
       
@@ -271,7 +289,9 @@ export default function AddMedication() {
       <Container size="2" py="9">
         <Card>
           <Flex direction="column" gap="5" p="4">
-            <Heading size="6" align="center">Add Medication for {pet?.name || 'Pet'}</Heading>
+            <Heading size="6" align="center">
+              {showReminderSettings ? 'Set Medication Reminders' : `Add Medication for ${pet?.name || 'Pet'}`}
+            </Heading>
 
             {error && (
               <Text color="red" size="2">
@@ -463,44 +483,9 @@ export default function AddMedication() {
                         onChange={handleChange}
                       />
                       <Text as="label" size="2" htmlFor="reminders">
-                        Set Reminders
+                        Set Reminders (configure after saving medication)
                       </Text>
                     </Flex>
-
-                    {formData.reminders && (
-                      <Box>
-                        <Text size="2" mb="2">Reminder Times:</Text>
-                        {formData.reminderTimes.map((time, index) => (
-                          <Flex key={index} gap="2" mb="2" align="center">
-                            <TextField.Root
-                              type="time"
-                              value={time}
-                              onChange={(e) => handleReminderTimeChange(index, e.target.value)}
-                              style={{ flexGrow: 1 }}
-                            />
-                            {formData.reminderTimes.length > 1 && (
-                              <Button
-                                type="button"
-                                size="1"
-                                variant="soft"
-                                color="red"
-                                onClick={() => removeReminderTime(index)}
-                              >
-                                Remove
-                              </Button>
-                            )}
-                          </Flex>
-                        ))}
-                        <Button
-                          type="button"
-                          size="1"
-                          variant="soft"
-                          onClick={addReminderTime}
-                        >
-                          Add Reminder Time
-                        </Button>
-                      </Box>
-                    )}
                   </Box>
 
                   <Box>
@@ -529,6 +514,26 @@ export default function AddMedication() {
                   </Flex>
                 </Flex>
               </form>
+            )}
+
+            {/* Show reminder settings after medication is created */}
+            {showReminderSettings && createdMedicationId && (
+              <Box mt="4">
+                <MedicationReminderSettings
+                  medicationId={createdMedicationId}
+                  petId={parseInt(petId)}
+                  onSave={handleReminderSave}
+                  existingReminders={[]}
+                />
+                <Flex gap="3" mt="4">
+                  <Button
+                    variant="soft"
+                    onClick={() => router.push(`/pets/${petId}?tab=medications`)}
+                  >
+                    Skip Reminders
+                  </Button>
+                </Flex>
+              </Box>
             )}
           </Flex>
         </Card>
